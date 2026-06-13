@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — Haulxify Partner Portal</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div class="login-bg">
+    <div class="login-card">
+
+        <div class="login-brand">
+            <div class="wordmark">HAULXIFY</div>
+            <p>Partner Lead Portal &nbsp;·&nbsp; Authorized Access Only</p>
+        </div>
+
+        <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
+
+            <div id="error-box" class="error-msg hidden"></div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input id="email" type="email" class="form-control"
+                    placeholder="you@company.com" autocomplete="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input id="password" type="password" class="form-control"
+                    placeholder="••••••••" autocomplete="current-password" required>
+            </div>
+
+            <button type="submit" class="login-btn" id="login-btn">Sign In</button>
+
+        </form>
+
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+// If already logged in, redirect
+(async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
+    if (profile && profile.is_active) redirectByRole(profile.role);
+})();
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn      = document.getElementById('login-btn');
+    const errBox   = document.getElementById('error-box');
+
+    errBox.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        const { data: profile, error: pe } = await sb
+            .from('profiles').select('role, is_active, full_name')
+            .eq('id', data.user.id).single();
+
+        if (pe || !profile) throw new Error('Could not load your profile. Contact admin.');
+        if (!profile.is_active) throw new Error('Your account is deactivated. Contact your admin.');
+
+        redirectByRole(profile.role);
+
+    } catch (err) {
+        errBox.textContent = err.message || 'Login failed. Check your credentials.';
+        errBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+    }
+}
+</script>
+</body>
+</html>

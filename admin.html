@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — Haulxify Partner Portal</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- ─── TOP NAV ───────────────────────────────────────────────────────────── -->
+<nav class="topnav">
+    <div class="topnav-left">
+        <a href="admin.html" class="wordmark">HAULXIFY</a>
+        <div class="nav-divider"></div>
+        <span class="nav-label">Admin Dashboard</span>
+    </div>
+    <div class="topnav-right">
+        <span class="nav-user" id="nav-name">—</span>
+        <span class="role-pill" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44;">Super Admin</span>
+        <button class="btn-ghost btn-sm" onclick="location.href='leads.html'">Leads</button>
+        <button class="btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+    </div>
+</nav>
+
+<!-- ─── MAIN ──────────────────────────────────────────────────────────────── -->
+<div class="page-wrap">
+
+    <div class="page-header">
+        <div>
+            <h1>Dashboard</h1>
+            <p id="dash-date">—</p>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-num" id="s-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">New</div><div class="stat-num" id="s-new">—</div><div class="stat-sub">Waiting on contact</div></div>
+        <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-num" id="s-active">—</div><div class="stat-sub">Contacted + Qualified</div></div>
+        <div class="stat-card accent"><div class="stat-label">Hired</div><div class="stat-num" id="s-hired">—</div><div class="stat-sub">Successful placements</div></div>
+        <div class="stat-card"><div class="stat-label">Portal Users</div><div class="stat-num" id="s-users">—</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="section-tabs">
+        <button class="section-tab active" onclick="switchTab('users')">User Management</button>
+        <button class="section-tab" onclick="switchTab('leads')">All Leads</button>
+    </div>
+
+    <!-- ──────────────────── USERS TAB ────────────────────────────────────── -->
+    <div id="tab-users">
+        <div class="page-header" style="margin-bottom:18px;">
+            <div>
+                <h2 style="font-size:19px;font-weight:700;">Portal Users</h2>
+                <p style="font-size:13px;color:var(--c-text-2);margin-top:3px;">Manage roles and account status</p>
+            </div>
+            <button class="btn btn-primary" onclick="openUserModal()">+ Add User</button>
+        </div>
+
+        <div class="notice notice-info" style="margin-bottom:18px;">
+            <strong>Note:</strong> New users receive a confirmation email. Make sure your Supabase project has SMTP configured, or disable email confirmation in <em>Authentication → Settings</em>.
+        </div>
+
+        <div id="users-wrap"><div class="loading-wrap"><div class="spinner"></div> Loading users…</div></div>
+    </div>
+
+    <!-- ──────────────────── LEADS TAB ────────────────────────────────────── -->
+    <div id="tab-leads" style="display:none;">
+        <div class="page-header" style="margin-bottom:18px;">
+            <div>
+                <h2 style="font-size:19px;font-weight:700;">All Leads</h2>
+                <p style="font-size:13px;color:var(--c-text-2);margin-top:3px;">Full pipeline view</p>
+            </div>
+            <button class="btn btn-primary" onclick="location.href='leads.html'">Go to Leads Page</button>
+        </div>
+        <div id="admin-leads-wrap"><div class="loading-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     USER MODAL
+══════════════════════════════════════════════════════════════════════ -->
+<div id="user-modal" class="modal-overlay hidden" onclick="onUserModalOverlay(event)">
+<div class="modal-panel" style="max-width:480px;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h2 id="user-modal-title">Add Portal User</h2>
+        <button class="modal-close" onclick="closeUserModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:none;overflow:visible;">
+        <div class="form-section">
+            <div class="form-grid" style="grid-template-columns:1fr;">
+                <div class="form-group">
+                    <label>Full Name <span class="req">*</span></label>
+                    <input id="u-name" class="form-control" placeholder="Jane Doe">
+                </div>
+                <div class="form-group">
+                    <label>Email Address <span class="req">*</span></label>
+                    <input id="u-email" class="form-control" type="email" placeholder="jane@haulxify.com">
+                </div>
+                <div class="form-group" id="u-password-group">
+                    <label>Temporary Password <span class="req">*</span></label>
+                    <input id="u-password" class="form-control" type="password"
+                        placeholder="Min. 8 characters" autocomplete="new-password">
+                    <p style="font-size:11px;color:var(--c-text-3);margin-top:4px;">
+                        User should change this on first login.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Role <span class="req">*</span></label>
+                    <select id="u-role" class="form-control">
+                        <option value="">— Select role —</option>
+                        <option value="sales_agent">Sales Agent — can add & edit leads</option>
+                        <option value="status_updater">Status Updater — can only update status & comment</option>
+                        <option value="super_admin">Super Admin — full access</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Account Status</label>
+                    <select id="u-active" class="form-control">
+                        <option value="true">Active</option>
+                        <option value="false">Deactivated</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-user-btn" onclick="saveUser()">Create User</button>
+    </div>
+</div>
+</div>
+
+<!-- ─── SCRIPTS ───────────────────────────────────────────────────────────── -->
+<script src="app.js"></script>
+<script>
+let allUsers       = [];
+let allAdminLeads  = [];
+let editingUserId  = null;
+let activeTab      = 'users';
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    const profile = await checkAuth(['super_admin']);
+    if (!profile) return;
+
+    document.getElementById('nav-name').textContent = profile.full_name;
+    document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', {
+        weekday:'long', year:'numeric', month:'long', day:'numeric'
+    });
+
+    await Promise.all([loadStats(), loadUsers()]);
+});
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+async function loadStats() {
+    try {
+        const [{ data: leads }, { data: users }] = await Promise.all([
+            sb.from('leads').select('status'),
+            sb.from('profiles').select('id, is_active'),
+        ]);
+
+        const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+        set('s-total',  leads?.length || 0);
+        set('s-new',    leads?.filter(l => l.status === 'New').length || 0);
+        set('s-active', leads?.filter(l => ['Contacted','Qualified','In Progress'].includes(l.status)).length || 0);
+        set('s-hired',  leads?.filter(l => l.status === 'Hired').length || 0);
+        set('s-users',  users?.filter(u => u.is_active).length || 0);
+    } catch (err) {
+        console.error('Stats error:', err);
+    }
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.section-tab').forEach((el, i) => {
+        el.classList.toggle('active', (i === 0 && tab === 'users') || (i === 1 && tab === 'leads'));
+    });
+    document.getElementById('tab-users').style.display  = tab === 'users' ? ''  : 'none';
+    document.getElementById('tab-leads').style.display  = tab === 'leads' ? ''  : 'none';
+    if (tab === 'leads' && !allAdminLeads.length) loadAdminLeads();
+}
+
+// ─── USERS ────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+    try {
+        allUsers = await fetchProfiles();
+        renderUsers();
+    } catch (err) {
+        document.getElementById('users-wrap').innerHTML = `<div class="empty-state"><div class="empty-title">Error loading users</div><div class="empty-sub">${escHtml(err.message)}</div></div>`;
+    }
+}
+
+function renderUsers() {
+    const wrap = document.getElementById('users-wrap');
+    if (!allUsers.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No users yet</div></div>`;
+        return;
+    }
+    wrap.innerHTML = `
+    <div class="users-table-wrap">
+    <table class="users-table">
+        <thead><tr>
+            <th>User</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Added</th>
+            <th>Actions</th>
+        </tr></thead>
+        <tbody>
+        ${allUsers.map(u => {
+            const rm = ROLE_META[u.role] || { label: u.role, color: '#6b7280' };
+            return `<tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="avatar">${(u.full_name||'?')[0].toUpperCase()}</div>
+                        <div>
+                            <div class="fw-600">${escHtml(u.full_name)}</div>
+                            <div style="font-size:12px;color:var(--c-text-2);">${escHtml(u.email)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="role-pill" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span></td>
+                <td>
+                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${u.is_active ? 'var(--c-success)' : 'var(--c-text-3)'};">
+                        <span style="width:7px;height:7px;border-radius:50%;background:${u.is_active ? 'var(--c-success)' : 'var(--c-text-3)'}"></span>
+                        ${u.is_active ? 'Active' : 'Deactivated'}
+                    </span>
+                </td>
+                <td style="color:var(--c-text-2);">${formatDate(u.created_at)}</td>
+                <td>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-ghost btn-sm" onclick="openEditUserModal('${u.id}')">Edit</button>
+                        ${u.id !== currentProfile.id ? `<button class="btn btn-${u.is_active?'danger':'secondary'} btn-sm" onclick="toggleUserActive('${u.id}', ${!u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>` : ''}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('')}
+        </tbody>
+    </table>
+    </div>`;
+}
+
+// ─── USER MODAL ───────────────────────────────────────────────────────────────
+function openUserModal() {
+    editingUserId = null;
+    document.getElementById('user-modal-title').textContent = 'Add Portal User';
+    document.getElementById('u-name').value     = '';
+    document.getElementById('u-email').value    = '';
+    document.getElementById('u-password').value = '';
+    document.getElementById('u-role').value     = '';
+    document.getElementById('u-active').value   = 'true';
+    document.getElementById('u-email').disabled = false;
+    document.getElementById('u-password-group').style.display = '';
+    document.getElementById('save-user-btn').textContent = 'Create User';
+    document.getElementById('user-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function openEditUserModal(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+    editingUserId = userId;
+    document.getElementById('user-modal-title').textContent = 'Edit User';
+    document.getElementById('u-name').value   = user.full_name;
+    document.getElementById('u-email').value  = user.email;
+    document.getElementById('u-email').disabled = true;
+    document.getElementById('u-role').value   = user.role;
+    document.getElementById('u-active').value = String(user.is_active);
+    document.getElementById('u-password-group').style.display = 'none';
+    document.getElementById('save-user-btn').textContent = 'Save Changes';
+    document.getElementById('user-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeUserModal() {
+    document.getElementById('user-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+    editingUserId = null;
+}
+
+function onUserModalOverlay(e) {
+    if (e.target === document.getElementById('user-modal')) closeUserModal();
+}
+
+async function saveUser() {
+    const name   = document.getElementById('u-name').value.trim();
+    const email  = document.getElementById('u-email').value.trim();
+    const pass   = document.getElementById('u-password').value;
+    const role   = document.getElementById('u-role').value;
+    const active = document.getElementById('u-active').value === 'true';
+    const btn    = document.getElementById('save-user-btn');
+
+    if (!name)  { showToast('Full name is required.', 'error'); return; }
+    if (!role)  { showToast('Please select a role.', 'error'); return; }
+    if (!editingUserId && (!email || !pass)) {
+        showToast('Email and password are required for new users.', 'error'); return;
+    }
+    if (!editingUserId && pass.length < 8) {
+        showToast('Password must be at least 8 characters.', 'error'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+        if (editingUserId) {
+            await updateProfile(editingUserId, { full_name: name, role, is_active: active });
+            showToast('User updated.', 'success');
+        } else {
+            await createPortalUser(email, pass, name, role);
+            if (!active) {
+                // Find created user and deactivate
+                const fresh = await fetchProfiles();
+                const created = fresh.find(u => u.email === email);
+                if (created) await updateProfile(created.id, { is_active: false });
+            }
+            showToast(`User "${name}" created. They can now log in.`, 'success');
+        }
+        closeUserModal();
+        await loadUsers();
+        await loadStats();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = editingUserId ? 'Save Changes' : 'Create User';
+    }
+}
+
+async function toggleUserActive(userId, newState) {
+    const user = allUsers.find(u => u.id === userId);
+    const action = newState ? 'activate' : 'deactivate';
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} ${user?.full_name}?`)) return;
+    try {
+        await updateProfile(userId, { is_active: newState });
+        showToast(`User ${action}d.`, 'success');
+        await loadUsers();
+        await loadStats();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+// ─── ADMIN LEADS VIEW ─────────────────────────────────────────────────────────
+async function loadAdminLeads() {
+    try {
+        allAdminLeads = await fetchLeads();
+        renderAdminLeads();
+    } catch (err) {
+        document.getElementById('admin-leads-wrap').innerHTML = `<p style="color:var(--c-danger);">${escHtml(err.message)}</p>`;
+    }
+}
+
+function renderAdminLeads() {
+    const wrap = document.getElementById('admin-leads-wrap');
+    if (!allAdminLeads.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No leads yet</div></div>`;
+        return;
+    }
+    wrap.innerHTML = `
+    <div class="leads-table-wrap">
+    <table class="leads-table">
+        <thead><tr>
+            <th>Company / Owner</th>
+            <th>Phone</th>
+            <th>Route</th>
+            <th>Comp. Type</th>
+            <th>Status</th>
+            <th>Agent</th>
+            <th>Added</th>
+        </tr></thead>
+        <tbody>
+        ${allAdminLeads.map(l => `<tr>
+            <td>
+                <div class="lead-company">${escHtml(l.company_name)}</div>
+                <div class="lead-sub">${escHtml(l.owner_name)}</div>
+            </td>
+            <td style="color:var(--c-text-2);">${escHtml(l.phone||'—')}</td>
+            <td style="color:var(--c-text-2);">${escHtml(l.route_type||'—')}</td>
+            <td style="color:var(--c-text-2);font-size:12px;">${escHtml(l.compensation_type||'—')}</td>
+            <td>${statusBadge(l.status)}</td>
+            <td style="color:var(--c-text-2);">${escHtml(l.agent?.full_name||'—')}</td>
+            <td style="color:var(--c-text-2);">${formatDate(l.created_at)}</td>
+        </tr>`).join('')}
+        </tbody>
+    </table>
+    </div>`;
+}
+</script>
+</body>
+</html>

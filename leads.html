@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leads — Haulxify Partner Portal</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- ─── TOP NAV ──────────────────────────────────────────────────────────── -->
+<nav class="topnav">
+    <div class="topnav-left">
+        <a href="leads.html" class="wordmark">HAULXIFY</a>
+        <div class="nav-divider"></div>
+        <span class="nav-label">Partner Portal</span>
+    </div>
+    <div class="topnav-right">
+        <span class="nav-user" id="nav-name">—</span>
+        <span id="nav-role" class="role-pill"></span>
+        <button class="btn-ghost btn-sm" id="admin-link" style="display:none" onclick="location.href='admin.html'">Admin</button>
+        <button class="btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+    </div>
+</nav>
+
+<!-- ─── MAIN ─────────────────────────────────────────────────────────────── -->
+<div class="page-wrap">
+
+    <div class="page-header">
+        <div>
+            <h1>Leads</h1>
+            <p id="lead-count">Loading…</p>
+        </div>
+        <button class="btn btn-primary" id="new-lead-btn" onclick="openLeadModal()" style="display:none">
+            + New Lead
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+        <div class="search-wrap">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input type="search" class="search-input" id="search-input"
+                placeholder="Search company or owner name…" oninput="onSearch(this.value)">
+        </div>
+        <div class="filter-pills" id="filter-pills">
+            <button class="filter-pill active" data-status="all"     onclick="setFilter('all')">All</button>
+            <button class="filter-pill" data-status="New"            onclick="setFilter('New')">New</button>
+            <button class="filter-pill" data-status="Contacted"      onclick="setFilter('Contacted')">Contacted</button>
+            <button class="filter-pill" data-status="Qualified"      onclick="setFilter('Qualified')">Qualified</button>
+            <button class="filter-pill" data-status="In Progress"    onclick="setFilter('In Progress')">In Progress</button>
+            <button class="filter-pill" data-status="Hired"          onclick="setFilter('Hired')">Hired</button>
+            <button class="filter-pill" data-status="Closed"         onclick="setFilter('Closed')">Closed</button>
+            <button class="filter-pill" data-status="Lost"           onclick="setFilter('Lost')">Lost</button>
+        </div>
+    </div>
+
+    <!-- Leads Table -->
+    <div id="leads-wrap"></div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     LEAD FORM MODAL (Create / Edit)
+══════════════════════════════════════════════════════════════════════════════ -->
+<div id="lead-modal" class="modal-overlay hidden" onclick="onModalOverlayClick(event)">
+<div class="modal-panel" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h2 id="modal-title">New Lead</h2>
+        <button class="modal-close" onclick="closeLeadModal()">✕</button>
+    </div>
+
+    <div class="modal-body" id="modal-body">
+
+        <!-- SECTION 1: Contact Information -->
+        <div class="form-section">
+            <div class="form-section-title">Contact Information</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Owner Name <span class="req">*</span></label>
+                    <input id="f-owner_name" class="form-control" placeholder="John Smith" required>
+                </div>
+                <div class="form-group">
+                    <label>Company Name <span class="req">*</span></label>
+                    <input id="f-company_name" class="form-control" placeholder="Smith Freight LLC" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input id="f-phone" class="form-control" placeholder="+1 (555) 000-0000" type="tel">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input id="f-email" class="form-control" placeholder="owner@company.com" type="email">
+                </div>
+                <div class="form-group full">
+                    <label>Company Address</label>
+                    <input id="f-company_address" class="form-control" placeholder="123 Freight Ave, Dallas, TX 75201">
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: Driver Requirements -->
+        <div class="form-section">
+            <div class="form-section-title">Driver Requirements</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Number of Drivers Required</label>
+                    <input id="f-drivers_required" class="form-control" type="number" min="1" placeholder="e.g. 3">
+                </div>
+                <div class="form-group">
+                    <label>Years of Experience Required</label>
+                    <input id="f-experience_years" class="form-control" type="number" min="0" placeholder="e.g. 2">
+                </div>
+
+                <div class="form-group">
+                    <label>License Type</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="license_type" value="CDL" onchange="onLicenseChange()"> CDL</label>
+                        <label class="radio-opt"><input type="radio" name="license_type" value="Non-CDL" onchange="onLicenseChange()"> Non-CDL</label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="cdl-class-wrap" style="display:none">
+                    <label>CDL Class</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="cdl_class" value="A"> Class A</label>
+                        <label class="radio-opt"><input type="radio" name="cdl_class" value="B"> Class B</label>
+                        <label class="radio-opt"><input type="radio" name="cdl_class" value="C"> Class C</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Route Type</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="route_type" value="OTR"> OTR</label>
+                        <label class="radio-opt"><input type="radio" name="route_type" value="Regional"> Regional</label>
+                    </div>
+                </div>
+
+                <div class="form-group full">
+                    <label>Specific Requirements</label>
+                    <textarea id="f-specific_requirements" class="form-control"
+                        placeholder="Ethnicity requirements, special permits (HazMat, Tanker, TWIC), endorsements, background restrictions, etc."
+                        rows="3"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: Truck Details -->
+        <div class="form-section">
+            <div class="form-section-title">Truck Details</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Truck Year</label>
+                    <input id="f-truck_year" class="form-control" placeholder="e.g. 2021" maxlength="4">
+                </div>
+                <div class="form-group">
+                    <label>Make</label>
+                    <input id="f-truck_make" class="form-control" placeholder="e.g. Kenworth">
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <input id="f-truck_model" class="form-control" placeholder="e.g. T680">
+                </div>
+                <div class="form-group">
+                    <label>Transmission</label>
+                    <select id="f-transmission" class="form-control">
+                        <option value="">— Select —</option>
+                        <option value="Automatic">Automatic</option>
+                        <option value="Manual">Manual</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>ELD Installed?</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="eld_installed" value="true"> Yes</label>
+                        <label class="radio-opt"><input type="radio" name="eld_installed" value="false"> No</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Pictures Requested?</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="pictures_requested" value="true"> Yes</label>
+                        <label class="radio-opt"><input type="radio" name="pictures_requested" value="false"> No</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 4: Compensation -->
+        <div class="form-section">
+            <div class="form-section-title">Compensation</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Compensation Type</label>
+                    <select id="f-compensation_type" class="form-control" onchange="onCompTypeChange()">
+                        <option value="">— Select type —</option>
+                        <option value="Mileage Rate">Mileage Rate ($/mile)</option>
+                        <option value="Hourly Rate">Hourly Rate ($/hr)</option>
+                        <option value="Gross Revenue Percentage">Gross Revenue Percentage (%)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="comp-value-wrap" style="display:none">
+                    <label id="comp-value-label">Rate</label>
+                    <input id="f-compensation_value" class="form-control" placeholder="">
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 5: Employment Terms -->
+        <div class="form-section">
+            <div class="form-section-title">Employment Terms</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Employment Classification</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="employment_classification" value="1099 Independent Contractor"> 1099 Contractor</label>
+                        <label class="radio-opt"><input type="radio" name="employment_classification" value="W-2 Employee"> W-2 Employee</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Commission Per Successful Hire</label>
+                    <input id="f-commission_per_hire" class="form-control" placeholder="e.g. $500 flat, 10%, etc.">
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /modal-body -->
+
+    <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeLeadModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-lead-btn" onclick="saveLead()">Save Lead</button>
+    </div>
+</div>
+</div><!-- /lead-modal -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     LEAD DETAIL DRAWER
+══════════════════════════════════════════════════════════════════════════════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="lead-drawer">
+
+    <div class="drawer-header">
+        <div>
+            <div id="d-company" style="font-size:18px;font-weight:700;"></div>
+            <div id="d-owner" style="font-size:13px;color:var(--c-text-2);margin-top:3px;"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <span id="d-status-badge"></span>
+            <button class="drawer-close" onclick="closeDrawer()">✕</button>
+        </div>
+    </div>
+
+    <div class="drawer-body" id="drawer-body">
+        <!-- Rendered by JS -->
+    </div>
+
+</aside>
+
+<!-- ─── SCRIPTS ───────────────────────────────────────────────────────────── -->
+<script src="app.js"></script>
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let allLeads      = [];
+let activeFilter  = 'all';
+let searchTerm    = '';
+let editingLeadId = null;
+let openLeadId    = null;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    const profile = await checkAuth();
+    if (!profile) return;
+
+    // Nav
+    document.getElementById('nav-name').textContent = profile.full_name;
+    const rm = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
+    const rp = document.getElementById('nav-role');
+    rp.textContent = rm.label;
+    rp.style.cssText = `background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;`;
+
+    // Show New Lead button only for agents/admins
+    if (profile.role !== 'status_updater')
+        document.getElementById('new-lead-btn').style.display = '';
+
+    // Show Admin link for super_admin
+    if (profile.role === 'super_admin')
+        document.getElementById('admin-link').style.display = '';
+
+    await loadLeads();
+});
+
+// ─── LOAD / RENDER ────────────────────────────────────────────────────────────
+async function loadLeads() {
+    document.getElementById('leads-wrap').innerHTML = `<div class="loading-wrap"><div class="spinner"></div> Loading leads…</div>`;
+    try {
+        allLeads = await fetchLeads({ status: activeFilter, search: searchTerm });
+        renderLeads();
+    } catch (err) {
+        document.getElementById('leads-wrap').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠</div><div class="empty-title">Failed to load</div><div class="empty-sub">${escHtml(err.message)}</div></div>`;
+    }
+}
+
+function renderLeads() {
+    const wrap = document.getElementById('leads-wrap');
+    document.getElementById('lead-count').textContent = `${allLeads.length} lead${allLeads.length !== 1 ? 's' : ''}`;
+
+    if (!allLeads.length) {
+        wrap.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">No leads yet</div>
+            <div class="empty-sub">${currentProfile.role !== 'status_updater' ? 'Click "+ New Lead" to add the first one.' : 'No leads match your filter.'}</div>
+        </div>`;
+        return;
+    }
+
+    const canEdit   = currentProfile.role !== 'status_updater';
+    const isAdmin   = currentProfile.role === 'super_admin';
+
+    wrap.innerHTML = `
+    <div class="leads-table-wrap">
+    <table class="leads-table">
+        <thead><tr>
+            <th>Company / Owner</th>
+            <th>Phone</th>
+            <th>Drivers</th>
+            <th>Route</th>
+            <th>Status</th>
+            <th>Agent</th>
+            <th>Added</th>
+            <th></th>
+        </tr></thead>
+        <tbody id="leads-tbody"></tbody>
+    </table>
+    </div>`;
+
+    const tbody = document.getElementById('leads-tbody');
+    tbody.innerHTML = allLeads.map(l => `
+        <tr onclick="openDrawer('${l.id}')">
+            <td>
+                <div class="lead-company">${escHtml(l.company_name)}</div>
+                <div class="lead-sub">${escHtml(l.owner_name)}</div>
+            </td>
+            <td class="text-muted">${escHtml(l.phone || '—')}</td>
+            <td class="text-muted">${l.drivers_required || '—'}</td>
+            <td class="text-muted">${escHtml(l.route_type || '—')}</td>
+            <td>${statusBadge(l.status)}</td>
+            <td class="text-muted">${escHtml(l.agent?.full_name || '—')}</td>
+            <td class="text-muted">${formatDate(l.created_at)}</td>
+            <td onclick="event.stopPropagation()">
+                <div class="actions-cell">
+                    ${canEdit && (isAdmin || l.created_by === currentProfile.id) ? `<button class="btn btn-ghost btn-sm" onclick="openLeadModal('${l.id}')">Edit</button>` : ''}
+                    ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('${l.id}','${escHtml(l.company_name)}')">Del</button>` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ─── FILTERS ──────────────────────────────────────────────────────────────────
+function setFilter(status) {
+    activeFilter = status;
+    document.querySelectorAll('.filter-pill').forEach(p =>
+        p.classList.toggle('active', p.dataset.status === status));
+    loadLeads();
+}
+
+let searchTimer;
+function onSearch(val) {
+    searchTerm = val;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadLeads, 350);
+}
+
+// ─── LEAD FORM MODAL ──────────────────────────────────────────────────────────
+function openLeadModal(leadId = null) {
+    editingLeadId = leadId;
+    document.getElementById('modal-title').textContent = leadId ? 'Edit Lead' : 'New Lead';
+    clearForm();
+
+    if (leadId) {
+        const lead = allLeads.find(l => l.id === leadId);
+        if (lead) populateForm(lead);
+    }
+    document.getElementById('lead-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLeadModal() {
+    document.getElementById('lead-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+    editingLeadId = null;
+}
+
+function onModalOverlayClick(e) {
+    if (e.target === document.getElementById('lead-modal')) closeLeadModal();
+}
+
+function clearForm() {
+    ['owner_name','company_name','phone','email','company_address',
+     'drivers_required','experience_years','specific_requirements',
+     'truck_year','truck_make','truck_model','transmission',
+     'compensation_type','compensation_value','commission_per_hire'].forEach(id => {
+        const el = document.getElementById('f-' + id);
+        if (el) el.value = '';
+    });
+    document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+    document.getElementById('cdl-class-wrap').style.display = 'none';
+    document.getElementById('comp-value-wrap').style.display = 'none';
+}
+
+function populateForm(l) {
+    const set = (id, val) => { const el = document.getElementById('f-'+id); if (el && val !== null && val !== undefined) el.value = val; };
+    set('owner_name', l.owner_name);
+    set('company_name', l.company_name);
+    set('phone', l.phone);
+    set('email', l.email);
+    set('company_address', l.company_address);
+    set('drivers_required', l.drivers_required);
+    set('experience_years', l.experience_years);
+    set('specific_requirements', l.specific_requirements);
+    set('truck_year', l.truck_year);
+    set('truck_make', l.truck_make);
+    set('truck_model', l.truck_model);
+    set('transmission', l.transmission);
+    set('commission_per_hire', l.commission_per_hire);
+
+    const radio = (name, val) => {
+        if (val === null || val === undefined) return;
+        const el = document.querySelector(`input[name="${name}"][value="${val}"]`);
+        if (el) el.checked = true;
+    };
+    radio('license_type', l.license_type);
+    radio('cdl_class', l.cdl_class);
+    radio('route_type', l.route_type);
+    radio('eld_installed', l.eld_installed === true ? 'true' : l.eld_installed === false ? 'false' : null);
+    radio('pictures_requested', l.pictures_requested === true ? 'true' : l.pictures_requested === false ? 'false' : null);
+    radio('employment_classification', l.employment_classification);
+
+    if (l.license_type === 'CDL') document.getElementById('cdl-class-wrap').style.display = '';
+    if (l.compensation_type) {
+        set('compensation_type', l.compensation_type);
+        set('compensation_value', l.compensation_value);
+        onCompTypeChange();
+    }
+}
+
+function getRadio(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : null;
+}
+
+function collectForm() {
+    const g = id => { const el = document.getElementById('f-'+id); return el ? (el.value.trim() || null) : null; };
+    const boolRadio = name => { const v = getRadio(name); return v === 'true' ? true : v === 'false' ? false : null; };
+
+    if (!g('owner_name') || !g('company_name')) {
+        showToast('Owner name and company name are required.', 'error');
+        return null;
+    }
+
+    return {
+        owner_name:              g('owner_name'),
+        company_name:            g('company_name'),
+        phone:                   g('phone'),
+        email:                   g('email'),
+        company_address:         g('company_address'),
+        drivers_required:        g('drivers_required') ? parseInt(g('drivers_required')) : null,
+        license_type:            getRadio('license_type'),
+        cdl_class:               getRadio('cdl_class'),
+        experience_years:        g('experience_years') ? parseInt(g('experience_years')) : null,
+        route_type:              getRadio('route_type'),
+        specific_requirements:   g('specific_requirements'),
+        truck_year:              g('truck_year'),
+        truck_make:              g('truck_make'),
+        truck_model:             g('truck_model'),
+        transmission:            g('transmission') || null,
+        eld_installed:           boolRadio('eld_installed'),
+        pictures_requested:      boolRadio('pictures_requested'),
+        compensation_type:       g('compensation_type') || null,
+        compensation_value:      g('compensation_value'),
+        employment_classification: getRadio('employment_classification'),
+        commission_per_hire:     g('commission_per_hire'),
+    };
+}
+
+async function saveLead() {
+    const payload = collectForm();
+    if (!payload) return;
+
+    const btn = document.getElementById('save-lead-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+        if (editingLeadId) {
+            await updateLead(editingLeadId, payload);
+            showToast('Lead updated.', 'success');
+        } else {
+            await createLead(payload);
+            showToast('Lead created!', 'success');
+        }
+        closeLeadModal();
+        await loadLeads();
+        if (openLeadId === editingLeadId) openDrawer(editingLeadId);
+    } catch (err) {
+        showToast('Save failed: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save Lead';
+    }
+}
+
+// Conditional fields
+function onLicenseChange() {
+    const cdl = getRadio('license_type') === 'CDL';
+    document.getElementById('cdl-class-wrap').style.display = cdl ? '' : 'none';
+    if (!cdl) document.querySelectorAll('input[name="cdl_class"]').forEach(r => r.checked = false);
+}
+
+const COMP_LABELS = {
+    'Mileage Rate': { label: 'Rate ($/mile)', placeholder: 'e.g. 0.55' },
+    'Hourly Rate':  { label: 'Rate ($/hr)',   placeholder: 'e.g. 22.50' },
+    'Gross Revenue Percentage': { label: 'Percentage (%)', placeholder: 'e.g. 28' },
+};
+function onCompTypeChange() {
+    const val = document.getElementById('f-compensation_type').value;
+    const wrap = document.getElementById('comp-value-wrap');
+    if (!val) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    const cfg = COMP_LABELS[val] || { label: 'Value', placeholder: '' };
+    document.getElementById('comp-value-label').textContent = cfg.label;
+    document.getElementById('f-compensation_value').placeholder = cfg.placeholder;
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+async function confirmDelete(id, name) {
+    if (!confirm(`Delete lead for "${name}"? This cannot be undone.`)) return;
+    try {
+        await deleteLead(id);
+        showToast('Lead deleted.', 'success');
+        if (openLeadId === id) closeDrawer();
+        await loadLeads();
+    } catch (err) {
+        showToast('Delete failed: ' + err.message, 'error');
+    }
+}
+
+// ─── DETAIL DRAWER ────────────────────────────────────────────────────────────
+async function openDrawer(leadId) {
+    openLeadId = leadId;
+    document.getElementById('drawer-overlay').classList.add('open');
+    document.getElementById('lead-drawer').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    document.getElementById('drawer-body').innerHTML = `<div class="loading-wrap"><div class="spinner"></div></div>`;
+    document.getElementById('d-company').textContent = '…';
+    document.getElementById('d-owner').textContent = '';
+    document.getElementById('d-status-badge').innerHTML = '';
+
+    try {
+        const [lead, activities] = await Promise.all([
+            fetchLead(leadId),
+            fetchActivities(leadId)
+        ]);
+        renderDrawer(lead, activities);
+    } catch (err) {
+        document.getElementById('drawer-body').innerHTML = `<div class="drawer-section"><p style="color:var(--c-danger)">Failed to load: ${escHtml(err.message)}</p></div>`;
+    }
+}
+
+function closeDrawer() {
+    document.getElementById('drawer-overlay').classList.remove('open');
+    document.getElementById('lead-drawer').classList.remove('open');
+    document.body.style.overflow = '';
+    openLeadId = null;
+}
+
+function renderDrawer(lead, activities) {
+    document.getElementById('d-company').textContent = lead.company_name;
+    document.getElementById('d-owner').textContent   = lead.owner_name;
+    document.getElementById('d-status-badge').innerHTML = statusBadge(lead.status);
+
+    const val = v => v !== null && v !== undefined && v !== '' ? escHtml(String(v)) : '<span style="color:var(--c-text-3)">—</span>';
+    const bool = v => v === true ? 'Yes' : v === false ? 'No' : '—';
+
+    const canEditThis = currentProfile.role === 'super_admin' ||
+        (currentProfile.role === 'sales_agent' && lead.created_by === currentProfile.id);
+
+    document.getElementById('drawer-body').innerHTML = `
+
+    <!-- Contact -->
+    <div class="drawer-section">
+        <div class="section-label">Contact Information</div>
+        <div class="detail-grid">
+            <div class="detail-item"><div class="di-label">Owner</div><div class="di-value">${val(lead.owner_name)}</div></div>
+            <div class="detail-item"><div class="di-label">Company</div><div class="di-value">${val(lead.company_name)}</div></div>
+            <div class="detail-item"><div class="di-label">Phone</div><div class="di-value">${val(lead.phone)}</div></div>
+            <div class="detail-item"><div class="di-label">Email</div><div class="di-value">${val(lead.email)}</div></div>
+            <div class="detail-item full"><div class="di-label">Address</div><div class="di-value">${val(lead.company_address)}</div></div>
+        </div>
+    </div>
+
+    <!-- Driver Requirements -->
+    <div class="drawer-section">
+        <div class="section-label">Driver Requirements</div>
+        <div class="detail-grid">
+            <div class="detail-item"><div class="di-label">Drivers Needed</div><div class="di-value">${val(lead.drivers_required)}</div></div>
+            <div class="detail-item"><div class="di-label">Experience (yrs)</div><div class="di-value">${val(lead.experience_years)}</div></div>
+            <div class="detail-item"><div class="di-label">License Type</div><div class="di-value">${val(lead.license_type)}${lead.cdl_class ? ` — Class ${lead.cdl_class}` : ''}</div></div>
+            <div class="detail-item"><div class="di-label">Route Type</div><div class="di-value">${val(lead.route_type)}</div></div>
+            <div class="detail-item full"><div class="di-label">Specific Requirements</div><div class="di-value">${val(lead.specific_requirements)}</div></div>
+        </div>
+    </div>
+
+    <!-- Truck Details -->
+    <div class="drawer-section">
+        <div class="section-label">Truck Details</div>
+        <div class="detail-grid">
+            <div class="detail-item"><div class="di-label">Year</div><div class="di-value">${val(lead.truck_year)}</div></div>
+            <div class="detail-item"><div class="di-label">Make</div><div class="di-value">${val(lead.truck_make)}</div></div>
+            <div class="detail-item"><div class="di-label">Model</div><div class="di-value">${val(lead.truck_model)}</div></div>
+            <div class="detail-item"><div class="di-label">Transmission</div><div class="di-value">${val(lead.transmission)}</div></div>
+            <div class="detail-item"><div class="di-label">ELD Installed</div><div class="di-value">${bool(lead.eld_installed)}</div></div>
+            <div class="detail-item"><div class="di-label">Pictures Requested</div><div class="di-value">${bool(lead.pictures_requested)}</div></div>
+        </div>
+    </div>
+
+    <!-- Compensation & Employment -->
+    <div class="drawer-section">
+        <div class="section-label">Compensation & Terms</div>
+        <div class="detail-grid">
+            <div class="detail-item"><div class="di-label">Compensation Type</div><div class="di-value">${val(lead.compensation_type)}</div></div>
+            <div class="detail-item"><div class="di-label">Rate / Value</div><div class="di-value">${val(lead.compensation_value)}</div></div>
+            <div class="detail-item"><div class="di-label">Employment</div><div class="di-value">${val(lead.employment_classification)}</div></div>
+            <div class="detail-item"><div class="di-label">Commission/Hire</div><div class="di-value">${val(lead.commission_per_hire)}</div></div>
+        </div>
+    </div>
+
+    <!-- Status Update -->
+    <div class="drawer-section">
+        <div class="section-label">Update Status</div>
+        <div class="status-strip" id="status-strip">
+            ${['New','Contacted','Qualified','In Progress','Hired','Closed','Lost'].map(s => {
+                const m = STATUS_META[s];
+                return `<button class="status-opt ${s === lead.status ? 'active' : ''}"
+                    style="color:${m.color};border-color:${s === lead.status ? m.color : 'var(--c-border)'};"
+                    onclick="setLeadStatus('${lead.id}','${s}')">${s}</button>`;
+            }).join('')}
+        </div>
+        <div style="margin-top:14px;">
+            <textarea id="drawer-comment" class="form-control" rows="2"
+                placeholder="Add a comment (optional)…"></textarea>
+            <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="submitComment('${lead.id}')">
+                Add Comment
+            </button>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="drawer-section" style="display:flex;gap:10px;flex-wrap:wrap;">
+        ${canEditThis ? `<button class="btn btn-secondary" onclick="closeDrawer();openLeadModal('${lead.id}')">Edit Lead Details</button>` : ''}
+        ${currentProfile.role === 'super_admin' ? `<button class="btn btn-danger" onclick="confirmDelete('${lead.id}','${escHtml(lead.company_name)}')">Delete Lead</button>` : ''}
+    </div>
+
+    <!-- Activity Log -->
+    <div class="drawer-section">
+        <div class="section-label">Activity Log</div>
+        <div class="activity-feed">
+            ${activities.length ? activities.map(a => renderActivity(a)).join('') :
+              '<p style="color:var(--c-text-3);font-size:13px;">No activity yet.</p>'}
+        </div>
+    </div>
+
+    <div style="padding:8px;"></div>
+    `;
+}
+
+function renderActivity(a) {
+    const typeColor = {
+        created:        '#10b981',
+        edited:         '#6366f1',
+        status_changed: '#f59e0b',
+        commented:      '#06b6d4',
+    }[a.action_type] || '#6b7280';
+
+    let text = '';
+    if (a.action_type === 'created')        text = `<strong>${escHtml(a.user?.full_name||'Someone')}</strong> created this lead`;
+    else if (a.action_type === 'edited')    text = `<strong>${escHtml(a.user?.full_name||'Someone')}</strong> edited lead details`;
+    else if (a.action_type === 'status_changed') text = `<strong>${escHtml(a.user?.full_name||'Someone')}</strong> changed status: ${statusBadge(a.old_status||'?')} → ${statusBadge(a.new_status||'?')}`;
+    else if (a.action_type === 'commented') text = `<strong>${escHtml(a.user?.full_name||'Someone')}</strong> left a comment`;
+
+    return `<div class="activity-item">
+        <div class="activity-dot" style="background:${typeColor};"></div>
+        <div class="activity-body">
+            <div style="font-size:13px;color:var(--c-text);">${text}</div>
+            ${a.comment ? `<div class="activity-comment">${escHtml(a.comment)}</div>` : ''}
+            <div class="activity-meta">${formatDateTime(a.created_at)}</div>
+        </div>
+    </div>`;
+}
+
+async function setLeadStatus(leadId, newStatus) {
+    try {
+        const comment = document.getElementById('drawer-comment')?.value?.trim() || null;
+        await statusUpdateRpc(leadId, newStatus, comment);
+        if (document.getElementById('drawer-comment')) document.getElementById('drawer-comment').value = '';
+        showToast(`Status set to "${newStatus}".`, 'success');
+        await loadLeads();
+        openDrawer(leadId);
+    } catch (err) {
+        showToast('Update failed: ' + err.message, 'error');
+    }
+}
+
+async function submitComment(leadId) {
+    const comment = document.getElementById('drawer-comment')?.value?.trim();
+    if (!comment) { showToast('Please write a comment first.', 'warning'); return; }
+    const lead = allLeads.find(l => l.id === leadId);
+    await setLeadStatus(leadId, lead?.status || 'New');
+}
+</script>
+</body>
+</html>
