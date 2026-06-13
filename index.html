@@ -85,7 +85,8 @@
             </form>
 
             <div class="login-footer">
-                Authorized access only &nbsp;·&nbsp; Haulxify &copy; 2025
+                Authorized access only &nbsp;·&nbsp; Haulxify &copy; <span id="footer-year"></span>
+<script>document.getElementById('footer-year').textContent = new Date().getFullYear();</script>
             </div>
 
         </div>
