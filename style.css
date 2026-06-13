@@ -529,15 +529,33 @@ select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='ht
     position: relative;
     z-index: 1;
 }
-
-.login-left-brand .logo-mark {
-    width: 36px; height: 36px;
-    background: var(--c-accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 16px; color: #07070f;
-    letter-spacing: -.02em;
-    flex-shrink: 0;
+.login-brand-logo {
+    height: 34px;
+    width: auto;
+    object-fit: contain;
+}
+.login-partner-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 24px;
+}
+.login-partner-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--c-text-3);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    white-space: nowrap;
+}
+.login-partner-img {
+    height: 28px;
+    width: auto;
+    object-fit: contain;
+    opacity: .8;
+    filter: brightness(1.15);
 }
 
 .login-left-brand .brand-name {
