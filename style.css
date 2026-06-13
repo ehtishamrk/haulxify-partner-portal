@@ -75,7 +75,10 @@ body {
 .nav-label { font-size: 12px; font-weight: 500; color: var(--c-text-2); letter-spacing: .04em; text-transform: uppercase; }
 .topnav-right { display: flex; align-items: center; gap: 14px; }
 .nav-user { font-size: 13px; font-weight: 500; color: var(--c-text-2); }
-
+.nav-logo-wrap { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.nav-logo-img  { height: 28px; width: auto; object-fit: contain; }
+.nav-logo-text { font-size: 15px; font-weight: 800; letter-spacing: .06em; color: var(--c-accent); text-transform: uppercase; }
+.nav-partner-logo { height: 24px; width: auto; object-fit: contain; opacity: .85; filter: brightness(1.1); }
 /* ─── ROLE PILL ─────────────────────────────────────────────────────────────── */
 .role-pill {
     display: inline-block;
