@@ -1,31 +1,31 @@
 /* style.css — Haulxify Partner Portal */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    /* Depth */
-    --c-base:     #09090f;
-    --c-page:     #0d0d1a;
-    --c-surface:  #141425;
-    --c-raised:   #1b1b30;
-    --c-hover:    #22223a;
+/* Depth */
+    --c-base:     #080e17;
+    --c-page:     #0d1929;
+    --c-surface:  #111f33;
+    --c-raised:   #172540;
+    --c-hover:    #1e2e4d;
 
     /* Borders */
-    --c-border:   #232340;
-    --c-border-l: #2d2d55;
+    --c-border:   #1e2e4a;
+    --c-border-l: #243555;
 
-    /* Accent — Amber */
-    --c-accent:   #f59e0b;
-    --c-accent-d: #d97706;
-    --c-accent-l: #fbbf24;
-    --c-accent-g: rgba(245,158,11,.12);
+    /* Accent — Haulxify Orange */
+    --c-accent:   #e87722;
+    --c-accent-d: #c85f0f;
+    --c-accent-l: #f08c3a;
+    --c-accent-g: rgba(232,119,34,.12);
 
     /* Text */
-    --c-text:     #f0f0ff;
-    --c-text-2:   #8888aa;
-    --c-text-3:   #4a4a6a;
+    --c-text:     #f0f4ff;
+    --c-text-2:   #7a92b4;
+    --c-text-3:   #3a5070;
 
     /* Semantic */
     --c-success: #10b981;
@@ -38,7 +38,7 @@
     --shadow:    0 4px 32px rgba(0,0,0,.55);
     --shadow-s:  0 2px 12px rgba(0,0,0,.4);
     --trans:     .18s ease;
-    --font:      'Inter', system-ui, sans-serif;
+    --font:      'Work Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 }
 
