@@ -5,27 +5,27 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-/* Depth */
-    --c-base:     #080e17;
-    --c-page:     #0d1929;
-    --c-surface:  #111f33;
-    --c-raised:   #172540;
-    --c-hover:    #1e2e4d;
+    /* Depth */
+    --c-base:     #ffffff;
+    --c-page:     #f5f6f8;
+    --c-surface:  #ffffff;
+    --c-raised:   #f0f2f5;
+    --c-hover:    #e8ebf0;
 
     /* Borders */
-    --c-border:   #1e2e4a;
-    --c-border-l: #243555;
+    --c-border:   #e2e6ed;
+    --c-border-l: #d0d6e0;
 
-    /* Accent — Haulxify Orange */
+    /* Accent */
     --c-accent:   #e87722;
     --c-accent-d: #c85f0f;
     --c-accent-l: #f08c3a;
-    --c-accent-g: rgba(232,119,34,.12);
+    --c-accent-g: rgba(232,119,34,.10);
 
     /* Text */
-    --c-text:     #f0f4ff;
-    --c-text-2:   #7a92b4;
-    --c-text-3:   #3a5070;
+    --c-text:     #0d1929;
+    --c-text-2:   #4a5d78;
+    --c-text-3:   #8fa3be;
 
     /* Semantic */
     --c-success: #10b981;
@@ -35,11 +35,34 @@
 
     --radius:    8px;
     --radius-l:  14px;
-    --shadow:    0 4px 32px rgba(0,0,0,.55);
-    --shadow-s:  0 2px 12px rgba(0,0,0,.4);
+    --shadow:    0 4px 32px rgba(13,25,41,.10);
+    --shadow-s:  0 2px 12px rgba(13,25,41,.08);
     --trans:     .18s ease;
     --font:      'Work Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="dark"] {
+    --c-base:     #080e17;
+    --c-page:     #0d1929;
+    --c-surface:  #111f33;
+    --c-raised:   #172540;
+    --c-hover:    #1e2e4d;
+
+    --c-border:   #1e2e4a;
+    --c-border-l: #243555;
+
+    --c-accent:   #e87722;
+    --c-accent-d: #c85f0f;
+    --c-accent-l: #f08c3a;
+    --c-accent-g: rgba(232,119,34,.12);
+
+    --c-text:     #ffffff;
+    --c-text-2:   #7a92b4;
+    --c-text-3:   #3a5070;
+
+    --shadow:    0 4px 32px rgba(0,0,0,.55);
+    --shadow-s:  0 2px 12px rgba(0,0,0,.4);
 }
 
 body {
@@ -79,6 +102,49 @@ body {
 .nav-logo-img  { height: 28px; width: auto; object-fit: contain; }
 .nav-logo-text { font-size: 15px; font-weight: 800; letter-spacing: .06em; color: var(--c-accent); text-transform: uppercase; }
 .nav-partner-logo { height: 24px; width: auto; object-fit: contain; opacity: .85; filter: brightness(1.1); }
+/* ─── THEME TOGGLE ──────────────────────────────────────────────────────────── */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--c-border-l);
+    background: var(--c-raised);
+    cursor: pointer;
+    transition: var(--trans);
+    user-select: none;
+}
+.theme-toggle:hover { border-color: var(--c-accent); }
+
+.theme-toggle-track {
+    width: 34px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--c-border-l);
+    position: relative;
+    transition: background .25s ease;
+    flex-shrink: 0;
+}
+.theme-toggle-track.dark { background: var(--c-accent); }
+
+.theme-toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+.theme-toggle-track.dark .theme-toggle-thumb { transform: translateX(16px); }
+
+.theme-toggle-icon {
+    font-size: 13px;
+    line-height: 1;
+    transition: var(--trans);
+}
+
 /* ─── ROLE PILL ─────────────────────────────────────────────────────────────── */
 .role-pill {
     display: inline-block;
@@ -767,6 +833,37 @@ select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='ht
         font-size: 24px;
     }
 }
+
+/* Login is always light */
+.login-bg,
+.login-bg * {
+    --c-base:     #ffffff;
+    --c-page:     #f5f6f8;
+    --c-surface:  #ffffff;
+    --c-raised:   #f0f2f5;
+    --c-hover:    #e8ebf0;
+    --c-border:   #e2e6ed;
+    --c-border-l: #d0d6e0;
+    --c-text:     #0d1929;
+    --c-text-2:   #4a5d78;
+    --c-text-3:   #8fa3be;
+    --shadow:     0 4px 32px rgba(13,25,41,.10);
+}
+
+.login-left {
+    background:
+        radial-gradient(ellipse 80% 60% at 30% 20%, rgba(232,119,34,.10) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 70% at 80% 80%, rgba(13,25,41,.05) 0%, transparent 55%),
+        #0d1929 !important;
+}
+
+.login-left * {
+    --c-text:   #ffffff;
+    --c-text-2: #a0b4cc;
+    --c-text-3: #5a7a99;
+    --c-border: #1e3a5a;
+}
+
 /* ─── RESPONSIVE ─────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
     .form-grid { grid-template-columns: 1fr; }
