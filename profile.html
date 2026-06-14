@@ -186,6 +186,7 @@
 <script>
 (async () => {
     const profile = await requireAuth();
+    const { data: { session } } = await sb.auth.getSession();
     if (!profile) return;
 
     // populate nav
@@ -211,7 +212,6 @@
     document.getElementById('field-email').value = profile.email || session?.user?.email || '';
     document.getElementById('field-dob').value              = profile.dob              || '';
     document.getElementById('field-phone').value            = profile.phone            || '';
-    document.getElementById('field-email').value            = profile.email            || '';
     document.getElementById('field-emergency-name').value   = profile.emergency_name   || '';
     document.getElementById('field-emergency-phone').value  = profile.emergency_phone  || '';
 })();
