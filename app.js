@@ -48,6 +48,9 @@ async function checkAuth(allowedRoles = null) {
 setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
 setAvatar(document.getElementById('dropdown-avatar'), profile.full_name, profile.avatar_url);
 
+const navNameEl = document.getElementById('nav-name');
+if (navNameEl) navNameEl.textContent = profile.full_name || '—';
+
 const ddName  = document.getElementById('dropdown-name');
 const ddEmail = document.getElementById('dropdown-email');
 if (ddName)  ddName.textContent  = profile.full_name || '—';
