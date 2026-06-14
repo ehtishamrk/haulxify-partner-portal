@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!profile) return;
 
     document.getElementById('nav-name').textContent = profile.full_name;
+    await initTheme(profile.id);
     document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', {
         weekday:'long', year:'numeric', month:'long', day:'numeric'
     });
