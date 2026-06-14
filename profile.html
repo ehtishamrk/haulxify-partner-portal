@@ -132,6 +132,9 @@
 <script>
 (async () => {
     await loadNav();
+        // mark My Profile as active in dropdown
+    const navProfileLink = document.querySelector('.profile-dropdown-item[href="profile.html"]');
+    if (navProfileLink) navProfileLink.classList.add('profile-dropdown-item--active');
     const profile = await requireAuth();
     const { data: { session } } = await sb.auth.getSession();
     if (!profile) return;
