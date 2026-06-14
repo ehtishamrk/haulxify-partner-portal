@@ -189,6 +189,7 @@
 <script src="app.js"></script>
 <script>
 (async () => {
+    await loadNav();
     const profile = await requireAuth();
     const { data: { session } } = await sb.auth.getSession();
     if (!profile) return;
