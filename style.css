@@ -170,16 +170,27 @@ body {
 /* ─── BUTTONS ───────────────────────────────────────────────────────────────── */
 .btn {
     display: inline-flex; align-items: center; gap: 7px;
-    padding: 9px 18px; border-radius: var(--radius);
+    padding: 10px 22px; border-radius: var(--radius);
     font-size: 13px; font-weight: 600; font-family: var(--font);
-    cursor: pointer; border: none; transition: var(--trans);
-    white-space: nowrap;
+    cursor: pointer; border: none; transition: all .18s ease;
+    white-space: nowrap; letter-spacing: .01em;
+    text-decoration: none; user-select: none;
 }
 .btn-primary {
-    background: var(--c-accent);
-    color: #07070f;
+    background: linear-gradient(135deg, var(--c-accent-l) 0%, var(--c-accent) 55%, var(--c-accent-d) 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(232,119,34,.28), inset 0 1px 0 rgba(255,255,255,.18);
 }
-.btn-primary:hover { background: var(--c-accent-l); transform: translateY(-1px); }
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--c-accent-l) 0%, var(--c-accent) 40%, var(--c-accent-d) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(232,119,34,.40), inset 0 1px 0 rgba(255,255,255,.18);
+    color: #fff;
+}
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(232,119,34,.20);
+}
 
 .btn-secondary {
     background: var(--c-raised);
