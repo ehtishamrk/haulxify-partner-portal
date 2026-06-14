@@ -239,3 +239,34 @@ async function createPortalUser(email, password, fullName, role) {
     }
     return data;
 }
+// ─── THEME SYSTEM ────────────────────────────────────────────────────────────
+
+async function initTheme(userId) {
+    const { data } = await sb.from('profiles').select('theme').eq('id', userId).single();
+    const theme = data?.theme || 'light';
+    applyTheme(theme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const track = document.getElementById('theme-track');
+    const icon  = document.getElementById('theme-icon');
+    if (!track) return;
+    if (theme === 'dark') {
+        track.classList.add('dark');
+        icon.textContent = '🌙';
+    } else {
+        track.classList.remove('dark');
+        icon.textContent = '☀️';
+    }
+}
+
+async function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next    = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+        await sb.from('profiles').update({ theme: next }).eq('id', session.user.id);
+    }
+}
