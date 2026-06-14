@@ -135,7 +135,7 @@
     const profile = await requireAuth();
     const { data: { session } } = await sb.auth.getSession();
     if (!profile) return;
-
+await initTheme(profile.id);
     // populate nav
     setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
     setAvatar(document.getElementById('dropdown-avatar'), profile.full_name, profile.avatar_url);
