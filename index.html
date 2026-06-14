@@ -136,14 +136,15 @@ async function handleLogin(e) {
 
     try {
         // 2. Server-side verify via Supabase Edge Function
-        const verifyRes = await fetch(`${SUPABASE_URL}/functions/v1/verify-turnstile`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY
-            },
-            body: JSON.stringify({ token: tsToken })
-        });
+const verifyRes = await fetch(`${SUPABASE_URL}/functions/v1/verify-turnstile`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({ token: tsToken })
+});
         const verifyData = await verifyRes.json();
         if (!verifyData.success) throw new Error('Security check failed. Please refresh and try again.');
 
