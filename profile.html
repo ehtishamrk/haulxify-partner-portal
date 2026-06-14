@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile — Haulxify</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ─── TOP NAV ─────────────────────────────────────────────────────────────── -->
+<nav class="topnav">
+    <div class="topnav-left">
+        <a href="leads.html" class="nav-logo-wrap">
+            <img src="images/haulxify.webp" alt="Haulxify" class="nav-logo-img">
+            <span class="nav-logo-text">HAULXIFY</span>
+        </a>
+        <div class="nav-divider"></div>
+        <img src="images/aims.webp" alt="AIMS Dispatch Services" class="nav-partner-logo">
+        <div class="nav-divider"></div>
+        <span class="nav-label">Partner Portal</span>
+    </div>
+    <div class="topnav-right">
+        <span class="nav-user" id="nav-name">—</span>
+        <span class="role-pill" id="nav-role-pill">—</span>
+        <div class="nav-divider"></div>
+        <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+            <div class="theme-toggle-track" id="theme-track">
+                <div class="theme-toggle-thumb" id="theme-icon"></div>
+            </div>
+        </button>
+        <div class="nav-divider"></div>
+        <div class="nav-avatar-wrap">
+            <div class="nav-avatar" id="nav-avatar" onclick="toggleProfileDropdown(event)">—</div>
+            <div class="profile-dropdown" id="profile-dropdown">
+                <div class="profile-dropdown-header">
+                    <div class="profile-dropdown-avatar" id="dropdown-avatar">—</div>
+                    <div class="profile-dropdown-info">
+                        <span class="profile-dropdown-name" id="dropdown-name">—</span>
+                        <span class="profile-dropdown-email" id="dropdown-email">—</span>
+                    </div>
+                </div>
+                <div class="profile-dropdown-divider"></div>
+                <a class="profile-dropdown-item profile-dropdown-item--active" href="profile.html">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M20 20a8 8 0 1 0-16 0"/></svg>
+                    My Profile
+                </a>
+                <a class="profile-dropdown-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Settings
+                </a>
+                <a class="profile-dropdown-item" id="dropdown-admin-link" href="admin.html" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Admin Panel
+                </a>
+                <div class="profile-dropdown-divider"></div>
+                <a class="profile-dropdown-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Help & Support
+                </a>
+                <div class="profile-dropdown-divider"></div>
+                <button class="profile-dropdown-item profile-dropdown-signout" onclick="logout()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ─── MAIN ─────────────────────────────────────────────────────────────────── -->
+<div class="page-wrap">
+    <div class="profile-page">
+
+        <!-- LEFT — Avatar card -->
+        <div class="profile-sidebar">
+            <div class="profile-avatar-card">
+                <div class="profile-avatar-ring" id="profile-avatar-display">—</div>
+                <div class="profile-avatar-meta">
+                    <span class="profile-avatar-name" id="profile-display-name">—</span>
+                    <span class="role-pill" id="profile-display-role">—</span>
+                </div>
+                <label class="profile-avatar-upload-btn" for="avatar-file-input">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Photo
+                </label>
+                <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+                <span class="profile-avatar-hint">JPG, PNG up to 5MB</span>
+                <div class="profile-upload-status" id="upload-status"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT — Sections -->
+        <div class="profile-main">
+
+            <!-- Toast -->
+            <div class="profile-toast" id="profile-toast"></div>
+
+            <!-- Personal Info -->
+            <div class="profile-section">
+                <div class="profile-section-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M20 20a8 8 0 1 0-16 0"/></svg>
+                    <div>
+                        <h2 class="profile-section-title">Personal Information</h2>
+                        <p class="profile-section-sub">Your name, date of birth and contact details</p>
+                    </div>
+                </div>
+                <div class="profile-form-grid">
+                    <div class="profile-field">
+                        <label class="profile-label">Full Name</label>
+                        <input class="profile-input" type="text" id="field-full-name" placeholder="Your full name">
+                    </div>
+                    <div class="profile-field">
+                        <label class="profile-label">Date of Birth</label>
+                        <input class="profile-input" type="date" id="field-dob">
+                    </div>
+                    <div class="profile-field">
+                        <label class="profile-label">Phone Number</label>
+                        <input class="profile-input" type="tel" id="field-phone" placeholder="+1 (555) 000-0000">
+                    </div>
+                    <div class="profile-field">
+                        <label class="profile-label">Email Address</label>
+                        <input class="profile-input" type="email" id="field-email" placeholder="you@example.com" disabled>
+                        <span class="profile-field-hint">Email cannot be changed here</span>
+                    </div>
+                </div>
+                <div class="profile-section-footer">
+                    <button class="btn-primary" onclick="savePersonalInfo()">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Emergency Contact -->
+            <div class="profile-section">
+                <div class="profile-section-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <div>
+                        <h2 class="profile-section-title">Emergency Contact</h2>
+                        <p class="profile-section-sub">Who should we contact in case of emergency</p>
+                    </div>
+                </div>
+                <div class="profile-form-grid">
+                    <div class="profile-field">
+                        <label class="profile-label">Contact Name</label>
+                        <input class="profile-input" type="text" id="field-emergency-name" placeholder="Full name">
+                    </div>
+                    <div class="profile-field">
+                        <label class="profile-label">Contact Phone</label>
+                        <input class="profile-input" type="tel" id="field-emergency-phone" placeholder="+1 (555) 000-0000">
+                    </div>
+                </div>
+                <div class="profile-section-footer">
+                    <button class="btn-primary" onclick="saveEmergencyContact()">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="profile-section">
+                <div class="profile-section-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <div>
+                        <h2 class="profile-section-title">Change Password</h2>
+                        <p class="profile-section-sub">Update your password to keep your account secure</p>
+                    </div>
+                </div>
+                <div class="profile-form-grid">
+                    <div class="profile-field">
+                        <label class="profile-label">New Password</label>
+                        <input class="profile-input" type="password" id="field-new-password" placeholder="Min. 8 characters">
+                    </div>
+                    <div class="profile-field">
+                        <label class="profile-label">Confirm New Password</label>
+                        <input class="profile-input" type="password" id="field-confirm-password" placeholder="Repeat new password">
+                    </div>
+                </div>
+                <div class="profile-section-footer">
+                    <button class="btn-primary" onclick="changePassword()">Update Password</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+    const profile = await requireAuth();
+    if (!profile) return;
+
+    // populate nav
+    setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
+    setAvatar(document.getElementById('dropdown-avatar'), profile.full_name, profile.avatar_url);
+    document.getElementById('dropdown-name').textContent  = profile.full_name || '—';
+    document.getElementById('dropdown-email').textContent = profile.email || '—';
+    if (profile.role === 'super_admin') {
+        document.getElementById('dropdown-admin-link').style.display = 'flex';
+    }
+
+    // populate profile page
+    setAvatar(document.getElementById('profile-avatar-display'), profile.full_name, profile.avatar_url);
+    document.getElementById('profile-display-name').textContent = profile.full_name || '—';
+    const roleMeta = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
+    const rp = document.getElementById('profile-display-role');
+    rp.textContent = roleMeta.label;
+    rp.style.background = roleMeta.color + '18';
+    rp.style.color = roleMeta.color;
+
+    // fill fields
+    document.getElementById('field-full-name').value        = profile.full_name        || '';
+    document.getElementById('field-dob').value              = profile.dob              || '';
+    document.getElementById('field-phone').value            = profile.phone            || '';
+    document.getElementById('field-email').value            = profile.email            || '';
+    document.getElementById('field-emergency-name').value   = profile.emergency_name   || '';
+    document.getElementById('field-emergency-phone').value  = profile.emergency_phone  || '';
+})();
+
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('profile-toast');
+    t.textContent = msg;
+    t.className = `profile-toast profile-toast--${type} profile-toast--show`;
+    setTimeout(() => t.classList.remove('profile-toast--show'), 3500);
+}
+
+async function savePersonalInfo() {
+    const full_name = document.getElementById('field-full-name').value.trim();
+    const dob       = document.getElementById('field-dob').value;
+    const phone     = document.getElementById('field-phone').value.trim();
+    if (!full_name) return showToast('Full name is required', 'error');
+    const { data: { session } } = await sb.auth.getSession();
+    const { error } = await sb.from('profiles').update({ full_name, dob: dob || null, phone: phone || null, updated_at: new Date().toISOString() }).eq('id', session.user.id);
+    if (error) return showToast('Failed to save: ' + error.message, 'error');
+    document.getElementById('nav-name').textContent = full_name;
+    document.getElementById('profile-display-name').textContent = full_name;
+    document.getElementById('dropdown-name').textContent = full_name;
+    showToast('Personal info saved successfully');
+}
+
+async function saveEmergencyContact() {
+    const emergency_name  = document.getElementById('field-emergency-name').value.trim();
+    const emergency_phone = document.getElementById('field-emergency-phone').value.trim();
+    const { data: { session } } = await sb.auth.getSession();
+    const { error } = await sb.from('profiles').update({ emergency_name: emergency_name || null, emergency_phone: emergency_phone || null, updated_at: new Date().toISOString() }).eq('id', session.user.id);
+    if (error) return showToast('Failed to save: ' + error.message, 'error');
+    showToast('Emergency contact saved successfully');
+}
+
+async function changePassword() {
+    const np = document.getElementById('field-new-password').value;
+    const cp = document.getElementById('field-confirm-password').value;
+    if (np.length < 8)  return showToast('Password must be at least 8 characters', 'error');
+    if (np !== cp)       return showToast('Passwords do not match', 'error');
+    const { error } = await sb.auth.updateUser({ password: np });
+    if (error) return showToast('Failed: ' + error.message, 'error');
+    document.getElementById('field-new-password').value = '';
+    document.getElementById('field-confirm-password').value = '';
+    showToast('Password updated successfully');
+}
+
+async function uploadAvatar(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return showToast('File must be under 5MB', 'error');
+    const status = document.getElementById('upload-status');
+    status.textContent = 'Uploading...';
+    const { data: { session } } = await sb.auth.getSession();
+    const path = `${session.user.id}/avatar`;
+    const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) { status.textContent = ''; return showToast('Upload failed: ' + upErr.message, 'error'); }
+    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(path);
+    const cacheBusted = publicUrl + '?t=' + Date.now();
+    const { error: dbErr } = await sb.from('profiles').update({ avatar_url: cacheBusted }).eq('id', session.user.id);
+    if (dbErr) { status.textContent = ''; return showToast('Saved but DB update failed', 'error'); }
+    // update all avatars on page
+    ['nav-avatar','dropdown-avatar','profile-avatar-display'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<img src="${cacheBusted}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    });
+    status.textContent = '';
+    showToast('Profile photo updated');
+}
+</script>
+</body>
+</html>
