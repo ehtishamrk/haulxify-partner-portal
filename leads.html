@@ -272,10 +272,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Nav
     document.getElementById('nav-name').textContent = profile.full_name;
     await initTheme(profile.id);
-    const rm = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
-    const rp = document.getElementById('nav-role');
+const rm = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
+const rp = document.getElementById('nav-role-pill');
+if (rp) {
     rp.textContent = rm.label;
     rp.style.cssText = `background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;`;
+}
 
     // Show New Lead button only for agents/admins
     if (profile.role !== 'status_updater')
