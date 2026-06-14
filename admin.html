@@ -192,6 +192,7 @@ let activeTab      = 'users';
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+    await loadNav();
     const profile = await checkAuth(['super_admin']);
     if (!profile) return;
 
