@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help & Support — Haulxify</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="topnav-mount" data-nav-label="Help & Support"></div>
+
+<div class="cs-page">
+    <div class="cs-content">
+        <div class="cs-orbit-wrap">
+            <div class="cs-ring cs-ring-outer"></div>
+            <div class="cs-ring cs-ring-inner"></div>
+            <div class="cs-icon-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="cs-badge"><span class="cs-badge-dot"></span>In Development</div>
+        <h1 class="cs-title">Help & Support</h1>
+        <p class="cs-subtitle">Answers and guidance, right when you need them</p>
+        <p class="cs-desc">FAQs, live chat, and step-by-step tutorials are on their way. For urgent help, reach out to your team lead directly.</p>
+        <a href="leads.html" class="btn btn-primary">← Back to Dashboard</a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+    await loadNav();
+    const profile = await checkAuth();
+    if (!profile) return;
+    await initTheme(profile.id);
+})();
+</script>
+</body>
+</html>
