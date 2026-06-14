@@ -823,6 +823,20 @@ select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='ht
     color: var(--c-text-3);
 }
 
+/* ─── CLOUDFLARE TURNSTILE ───────────────────────────────────────────────────── */
+.turnstile-wrap {
+    width: 100%;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--c-raised);
+    border: 1px solid var(--c-border-l);
+    min-height: 65px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.cf-turnstile { width: 100%; }
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
     .login-bg {
