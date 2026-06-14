@@ -7,6 +7,16 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser    = null;
 let currentProfile = null;
 
+async function loadNav() {
+    const mount = document.getElementById('topnav-mount');
+    if (!mount) return;
+    const label = mount.dataset.navLabel || '';
+    const res = await fetch('nav.html');
+    mount.innerHTML = await res.text();
+    const labelEl = document.getElementById('nav-page-label');
+    if (labelEl) labelEl.textContent = label;
+}
+
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 
 async function checkAuth(allowedRoles = null) {
