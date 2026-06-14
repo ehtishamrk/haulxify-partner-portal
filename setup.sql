@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     is_active   BOOLEAN NOT NULL DEFAULT true,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    -- In the profiles CREATE TABLE block, add:
+session_token TEXT
 );
 
 -- 2. LEADS TABLE
