@@ -208,6 +208,7 @@
 
     // fill fields
     document.getElementById('field-full-name').value        = profile.full_name        || '';
+    document.getElementById('field-email').value = profile.email || session?.user?.email || '';
     document.getElementById('field-dob').value              = profile.dob              || '';
     document.getElementById('field-phone').value            = profile.phone            || '';
     document.getElementById('field-email').value            = profile.email            || '';
