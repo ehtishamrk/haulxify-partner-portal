@@ -33,6 +33,23 @@ async function checkAuth(allowedRoles = null) {
 
         currentUser    = session.user;
         currentProfile = profile;
+
+// Populate navbar avatar + dynamic role pill
+const avatarEl = document.getElementById('nav-avatar');
+if (avatarEl && profile.full_name) {
+    const parts    = profile.full_name.trim().split(' ');
+    const initials = parts.length >= 2
+        ? parts[0][0] + parts[parts.length - 1][0]
+        : parts[0].slice(0, 2);
+    avatarEl.textContent = initials.toUpperCase();
+}
+const rolePillEl = document.getElementById('nav-role-pill');
+if (rolePillEl) {
+    const m = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
+    rolePillEl.textContent = m.label;
+    rolePillEl.style.cssText = `background:${m.color}22;color:${m.color};border:1px solid ${m.color}44;`;
+}
+        
         return profile;
     } catch (err) {
         console.error('Auth error:', err);
@@ -247,6 +264,9 @@ async function initTheme(userId) {
     applyTheme(theme);
 }
 
+const SUN_SVG  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
+const MOON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const track = document.getElementById('theme-track');
@@ -254,10 +274,10 @@ function applyTheme(theme) {
     if (!track) return;
     if (theme === 'dark') {
         track.classList.add('dark');
-        icon.textContent = '🌙';
+        if (icon) icon.innerHTML = MOON_SVG;
     } else {
         track.classList.remove('dark');
-        icon.textContent = '☀️';
+        if (icon) icon.innerHTML = SUN_SVG;
     }
 }
 
