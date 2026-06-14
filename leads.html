@@ -292,6 +292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Nav
     document.getElementById('nav-name').textContent = profile.full_name;
+    await initTheme(profile.id);
     const rm = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
     const rp = document.getElementById('nav-role');
     rp.textContent = rm.label;
