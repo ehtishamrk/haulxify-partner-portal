@@ -41,13 +41,15 @@ async function checkAuth(allowedRoles = null) {
             redirectByRole(profile.role); return null;
         }
 
-        currentUser    = session.user;
+currentUser    = session.user;
         currentProfile = profile;
 
-        // Start single-session watcher for authenticated pages
-        if (!_sessionChannel) {
-            _watchSession(session.user.id, profile.session_token);
-            _activeSessionToken = profile.session_token;
+        // Single-session watcher
+        const storedToken = sessionStorage.getItem('ss_token');
+        const expectedToken = storedToken || profile.session_token;
+        if (!_sessionChannel && expectedToken) {
+            _watchSession(session.user.id, expectedToken);
+            _activeSessionToken = expectedToken;
         }
 
 // populate nav avatar + dropdown header
