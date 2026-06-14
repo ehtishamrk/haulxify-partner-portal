@@ -35,13 +35,33 @@ async function checkAuth(allowedRoles = null) {
         currentProfile = profile;
 
 // Populate navbar avatar + dynamic role pill
-const avatarEl = document.getElementById('nav-avatar');
-if (avatarEl && profile.full_name) {
-    const parts    = profile.full_name.trim().split(' ');
-    const initials = parts.length >= 2
-        ? parts[0][0] + parts[parts.length - 1][0]
-        : parts[0].slice(0, 2);
-    avatarEl.textContent = initials.toUpperCase();
+// helper — populates any avatar element with photo or initials
+function setAvatar(el, fullName, avatarUrl) {
+    if (!el) return;
+    if (avatarUrl) {
+        el.innerHTML = `<img src="${avatarUrl}" alt="${fullName}">`;
+    } else if (fullName) {
+        const parts = fullName.trim().split(' ');
+        const initials = parts.length >= 2
+            ? parts[0][0] + parts[parts.length - 1][0]
+            : parts[0].slice(0, 2);
+        el.textContent = initials.toUpperCase();
+    }
+}
+
+// populate nav avatar + dropdown header
+setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
+setAvatar(document.getElementById('dropdown-avatar'), profile.full_name, profile.avatar_url);
+
+const ddName  = document.getElementById('dropdown-name');
+const ddEmail = document.getElementById('dropdown-email');
+if (ddName)  ddName.textContent  = profile.full_name || '—';
+if (ddEmail) ddEmail.textContent = profile.email     || session.user.email || '—';
+
+// show admin link in dropdown if admin
+const ddAdmin = document.getElementById('dropdown-admin-link');
+if (ddAdmin && (profile.role === 'admin' || profile.role === 'super_admin')) {
+    ddAdmin.style.display = 'flex';
 }
 const rolePillEl = document.getElementById('nav-role-pill');
 if (rolePillEl) {
@@ -290,3 +310,13 @@ async function toggleTheme() {
         await sb.from('profiles').update({ theme: next }).eq('id', session.user.id);
     }
 }
+function toggleProfileDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('profile-dropdown').classList.toggle('open');
+}
+
+// close dropdown when clicking anywhere else
+document.addEventListener('click', () => {
+    const dd = document.getElementById('profile-dropdown');
+    if (dd) dd.classList.remove('open');
+});
