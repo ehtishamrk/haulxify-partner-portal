@@ -49,7 +49,7 @@ async function checkAuth(allowedRoles = null) {
 function setAvatar(el, fullName, avatarUrl) {
     if (!el) return;
     if (avatarUrl) {
-        el.innerHTML = `<img src="${avatarUrl}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+el.innerHTML = `<img src="${avatarUrl}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
     } else if (fullName) {
         const parts = fullName.trim().split(' ');
         const initials = parts.length >= 2
