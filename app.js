@@ -44,21 +44,6 @@ async function checkAuth(allowedRoles = null) {
         currentUser    = session.user;
         currentProfile = profile;
 
-// Populate navbar avatar + dynamic role pill
-// helper — populates any avatar element with photo or initials
-function setAvatar(el, fullName, avatarUrl) {
-    if (!el) return;
-    if (avatarUrl) {
-el.innerHTML = `<img src="${avatarUrl}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
-    } else if (fullName) {
-        const parts = fullName.trim().split(' ');
-        const initials = parts.length >= 2
-            ? parts[0][0] + parts[parts.length - 1][0]
-            : parts[0].slice(0, 2);
-        el.textContent = initials.toUpperCase();
-    }
-}
-
 // populate nav avatar + dropdown header
 setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
 setAvatar(document.getElementById('dropdown-avatar'), profile.full_name, profile.avatar_url);
@@ -85,6 +70,20 @@ if (rolePillEl) {
         console.error('Auth error:', err);
         redirectToLogin();
         return null;
+    }
+}
+
+// ─── AVATAR HELPER ───────────────────────────────────────────────────────────
+function setAvatar(el, fullName, avatarUrl) {
+    if (!el) return;
+    if (avatarUrl) {
+        el.innerHTML = `<img src="${avatarUrl}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+    } else if (fullName) {
+        const parts = fullName.trim().split(' ');
+        const initials = parts.length >= 2
+            ? parts[0][0] + parts[parts.length - 1][0]
+            : parts[0].slice(0, 2);
+        el.textContent = initials.toUpperCase();
     }
 }
 
