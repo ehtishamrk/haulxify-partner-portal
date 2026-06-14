@@ -26,6 +26,12 @@
         <span class="nav-user" id="nav-name">—</span>
         <span id="nav-role" class="role-pill"></span>
         <button class="btn-ghost btn-sm" id="admin-link" style="display:none" onclick="location.href='admin.html'">Admin</button>
+<button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+            <span class="theme-toggle-icon" id="theme-icon">☀️</span>
+            <div class="theme-toggle-track" id="theme-track">
+                <div class="theme-toggle-thumb"></div>
+            </div>
+        </button>
         <button class="btn-ghost btn-sm" onclick="logout()">Sign Out</button>
     </div>
 </nav>
