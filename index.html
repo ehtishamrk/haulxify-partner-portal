@@ -122,10 +122,34 @@ async function handleLogin(e) {
     const errText  = document.getElementById('error-text');
 
     errBox.classList.add('hidden');
+
+    // 1. Check widget was solved
+    const tsToken = typeof turnstile !== 'undefined' ? turnstile.getResponse() : null;
+    if (!tsToken) {
+        errText.textContent = 'Please complete the security check below.';
+        errBox.classList.remove('hidden');
+        return;
+    }
+
     btn.disabled = true;
-    btn.innerHTML = '<span>Signing in…</span>';
+    btn.innerHTML = '<span>Verifying…</span>';
 
     try {
+        // 2. Server-side verify via Supabase Edge Function
+        const verifyRes = await fetch(`${SUPABASE_URL}/functions/v1/verify-turnstile`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({ token: tsToken })
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyData.success) throw new Error('Security check failed. Please refresh and try again.');
+
+        btn.innerHTML = '<span>Signing in…</span>';
+
+        // 3. Proceed with Supabase login
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
 
@@ -141,6 +165,7 @@ async function handleLogin(e) {
     } catch (err) {
         errText.textContent = err.message || 'Login failed. Check your credentials.';
         errBox.classList.remove('hidden');
+        if (typeof turnstile !== 'undefined') turnstile.reset();
         btn.disabled = false;
         btn.innerHTML = '<span>Sign In</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
     }
