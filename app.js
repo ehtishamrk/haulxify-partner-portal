@@ -403,3 +403,40 @@ document.addEventListener('click', () => {
     const dd = document.getElementById('profile-dropdown');
     if (dd) dd.classList.remove('open');
 });
+// ─── SINGLE SESSION ENFORCEMENT ──────────────────────────────────────────────
+
+let _activeSessionToken = null;
+let _sessionChannel = null;
+
+function _watchSession(userId, expectedToken) {
+    if (_sessionChannel) sb.removeChannel(_sessionChannel);
+
+    _sessionChannel = sb
+        .channel('session-watch:' + userId)
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles',
+                filter: `id=eq.${userId}`
+            },
+            (payload) => {
+                const newToken = payload.new?.session_token;
+                if (newToken && newToken !== expectedToken) {
+                    _handleSessionInvalidated();
+                }
+            }
+        )
+        .subscribe();
+}
+
+async function _handleSessionInvalidated() {
+    if (_sessionChannel) {
+        sb.removeChannel(_sessionChannel);
+        _sessionChannel = null;
+    }
+    await sb.auth.signOut();
+    showToast('You were signed in from another location. This session has ended.', 'warning');
+    setTimeout(redirectToLogin, 2500);
+}
