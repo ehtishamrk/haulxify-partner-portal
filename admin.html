@@ -14,11 +14,11 @@
 <nav class="topnav">
     <div class="topnav-left">
         <a href="admin.html" class="nav-logo-wrap">
-            <img src="Untitled_design.png" alt="Haulxify" class="nav-logo-img">
+            <img src="images/haulxify.webp" alt="Haulxify" class="nav-logo-img">
             <span class="nav-logo-text">HAULXIFY</span>
         </a>
         <div class="nav-divider"></div>
-        <img src="aim-1-removebg-preview.png" alt="AIMS Dispatch Services" class="nav-partner-logo">
+        <img src="images/aims.webp" alt="AIMS Dispatch Services" class="nav-partner-logo">
         <div class="nav-divider"></div>
         <span class="nav-label">Admin Dashboard</span>
     </div>
@@ -26,6 +26,12 @@
         <span class="nav-user" id="nav-name">—</span>
         <span class="role-pill" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44;">Super Admin</span>
         <button class="btn-ghost btn-sm" onclick="location.href='leads.html'">Leads</button>
+<button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+            <span class="theme-toggle-icon" id="theme-icon">☀️</span>
+            <div class="theme-toggle-track" id="theme-track">
+                <div class="theme-toggle-thumb"></div>
+            </div>
+        </button>
         <button class="btn-ghost btn-sm" onclick="logout()">Sign Out</button>
     </div>
 </nav>
@@ -154,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!profile) return;
 
     document.getElementById('nav-name').textContent = profile.full_name;
+    await initTheme(profile.id);
     document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', {
         weekday:'long', year:'numeric', month:'long', day:'numeric'
     });

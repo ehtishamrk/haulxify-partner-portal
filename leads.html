@@ -14,11 +14,11 @@
 <nav class="topnav">
     <div class="topnav-left">
         <a href="leads.html" class="nav-logo-wrap">
-            <img src="Untitled_design.png" alt="Haulxify" class="nav-logo-img">
+            <img src="images/haulxify.webp" alt="Haulxify" class="nav-logo-img">
             <span class="nav-logo-text">HAULXIFY</span>
         </a>
         <div class="nav-divider"></div>
-        <img src="aim-1-removebg-preview.png" alt="AIMS Dispatch Services" class="nav-partner-logo">
+        <img src="images/aims.webp" alt="AIMS Dispatch Services" class="nav-partner-logo">
         <div class="nav-divider"></div>
         <span class="nav-label">Partner Portal</span>
     </div>
@@ -26,6 +26,12 @@
         <span class="nav-user" id="nav-name">—</span>
         <span id="nav-role" class="role-pill"></span>
         <button class="btn-ghost btn-sm" id="admin-link" style="display:none" onclick="location.href='admin.html'">Admin</button>
+<button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+            <span class="theme-toggle-icon" id="theme-icon">☀️</span>
+            <div class="theme-toggle-track" id="theme-track">
+                <div class="theme-toggle-thumb"></div>
+            </div>
+        </button>
         <button class="btn-ghost btn-sm" onclick="logout()">Sign Out</button>
     </div>
 </nav>
@@ -286,6 +292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Nav
     document.getElementById('nav-name').textContent = profile.full_name;
+    await initTheme(profile.id);
     const rm = ROLE_META[profile.role] || { label: profile.role, color: '#6b7280' };
     const rp = document.getElementById('nav-role');
     rp.textContent = rm.label;
