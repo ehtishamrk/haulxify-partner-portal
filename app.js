@@ -44,6 +44,12 @@ async function checkAuth(allowedRoles = null) {
         currentUser    = session.user;
         currentProfile = profile;
 
+        // Start single-session watcher for authenticated pages
+        if (!_sessionChannel) {
+            _watchSession(session.user.id, profile.session_token);
+            _activeSessionToken = profile.session_token;
+        }
+
 // populate nav avatar + dropdown header
 setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
 setAvatar(document.getElementById('dropdown-avatar'), profile.full_name, profile.avatar_url);
@@ -99,6 +105,71 @@ function redirectToLogin() {
 
 function redirectByRole(role) {
     window.location.href = role === 'super_admin' ? 'admin.html' : 'leads.html';
+}
+
+// ─── SINGLE SESSION ENFORCEMENT ──────────────────────────────────────────────
+
+let _activeSessionToken = null;
+let _sessionChannel = null;
+
+/**
+ * Generates a random token to identify this browser tab's session.
+ */
+function generateSessionToken() {
+    return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now();
+}
+
+/**
+ * Call this right after a successful login.
+ * Writes a fresh token to the DB, then starts watching for invalidation.
+ */
+async function claimSession(userId) {
+    const token = generateSessionToken();
+    _activeSessionToken = token;
+
+    await sb.from('profiles')
+        .update({ session_token: token })
+        .eq('id', userId);
+
+    _watchSession(userId, token);
+}
+
+/**
+ * Subscribes to realtime changes on this user's profile row.
+ * If the session_token changes (another login), signs out this tab.
+ */
+function _watchSession(userId, expectedToken) {
+    if (_sessionChannel) sb.removeChannel(_sessionChannel);
+
+    _sessionChannel = sb
+        .channel('session-watch:' + userId)
+        .on(
+            'postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles',
+                filter: `id=eq.${userId}`
+            },
+            (payload) => {
+                const newToken = payload.new?.session_token;
+                if (newToken && newToken !== expectedToken) {
+                    // Another tab/device logged in — invalidate this session
+                    _handleSessionInvalidated();
+                }
+            }
+        )
+        .subscribe();
+}
+
+async function _handleSessionInvalidated() {
+    if (_sessionChannel) {
+        sb.removeChannel(_sessionChannel);
+        _sessionChannel = null;
+    }
+    await sb.auth.signOut();
+    showToast('You were signed in from another location. This session has ended.', 'warning');
+    setTimeout(redirectToLogin, 2500);
 }
 
 async function logout() {
