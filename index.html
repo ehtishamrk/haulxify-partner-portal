@@ -161,6 +161,7 @@ const verifyRes = await fetch(`${SUPABASE_URL}/functions/v1/verify-turnstile`, {
         if (pe || !profile) throw new Error('Could not load your profile. Contact admin.');
         if (!profile.is_active) throw new Error('Your account is deactivated. Contact your admin.');
 
+        await claimSession(data.user.id);
         redirectByRole(profile.role);
 
     } catch (err) {
