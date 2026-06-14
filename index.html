@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body style="margin:0;padding:0;height:100vh;overflow:hidden;">
 <div class="login-bg">
@@ -78,6 +79,14 @@
                     </div>
                 </div>
 
+<div class="turnstile-wrap">
+    <div class="cf-turnstile"
+         data-sitekey="0x4AAAAAADkVF8Mn9W-vuXwG"
+         data-theme="auto"
+         data-size="flexible">
+    </div>
+</div>
+                
                 <button type="submit" class="login-btn" id="login-btn">
                     <span>Sign In</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
