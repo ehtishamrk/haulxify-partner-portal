@@ -401,11 +401,12 @@ function clearForm() {
 document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
     document.getElementById('cdl-class-wrap').style.display = 'none';
     document.getElementById('comp-value-wrap').style.display = 'none';
-    // Reset images and drivers
+// Reset images and drivers
     _pendingImages = []; _existingImages = []; _driverDetails = [];
     renderImagePreviews();
-    document.getElementById('driver-details-section').style.display = 'none';
     document.getElementById('driver-rows').innerHTML = '';
+    const allBar = document.getElementById('apply-all-bar');
+    if (allBar) allBar.style.display = 'none';
 }
 
 function populateForm(l) {
@@ -474,17 +475,10 @@ function collectForm() {
         phone:                   g('phone'),
         email:                   g('email'),
         company_address:         g('company_address'),
-        drivers_required:        g('drivers_required') ? parseInt(g('drivers_required')) : null,
-        license_type:            getRadio('license_type'),
-        cdl_class:               getRadio('cdl_class'),
+drivers_required:        g('drivers_required') ? parseInt(g('drivers_required')) : null,
         experience_years:        g('experience_years') ? parseInt(g('experience_years')) : null,
         route_type:              getRadio('route_type'),
         specific_requirements:   g('specific_requirements'),
-        truck_year:              g('truck_year'),
-        truck_make:              g('truck_make'),
-        truck_model:             g('truck_model'),
-        transmission:            g('transmission') || null,
-eld_installed:           boolRadio('eld_installed'),
         driver_details:          _driverDetails,
         compensation_type:       g('compensation_type') || null,
         compensation_value:      g('compensation_value'),
@@ -589,67 +583,112 @@ async function uploadPendingImages(leadId) {
     return uploaded;
 }
 
-// ─── DRIVER DETAILS ROWS ──────────────────────────────────────────────────────
+// ─── DRIVER & TRUCK REQUIREMENT ROWS ─────────────────────────────────────────
 
-let _driverDetails = []; // array of { name, phone, license_number, cdl_class }
+let _driverDetails = [];
+// each item: { license_type, cdl_class, truck_year, truck_make, truck_model, transmission, eld_installed }
 
 function onDriverCountChange(val) {
     const n = parseInt(val) || 0;
-    const section = document.getElementById('driver-details-section');
+    const allBar = document.getElementById('apply-all-bar');
 
-    if (n < 1) { section.style.display = 'none'; _driverDetails = []; return; }
+    if (n < 1) {
+        _driverDetails = [];
+        document.getElementById('driver-rows').innerHTML = '';
+        if (allBar) allBar.style.display = 'none';
+        return;
+    }
 
-    // Grow or shrink array
-    while (_driverDetails.length < n) _driverDetails.push({ name:'', phone:'', license_number:'', cdl_class:'' });
+    while (_driverDetails.length < n)
+        _driverDetails.push({ license_type:'', cdl_class:'', truck_year:'', truck_make:'', truck_model:'', transmission:'', eld_installed:'' });
     _driverDetails = _driverDetails.slice(0, n);
 
-    section.style.display = '';
+    if (allBar) allBar.style.display = n > 1 ? '' : 'none';
+    renderDriverRows();
+}
+
+function applyAll(field, value) {
+    if (!value) return;
+    _driverDetails.forEach(d => d[field] = value);
     renderDriverRows();
 }
 
 function renderDriverRows() {
     const wrap = document.getElementById('driver-rows');
+    if (!wrap) return;
+
     wrap.innerHTML = _driverDetails.map((d, i) => `
-        <div style="border:1px solid var(--c-border);border-radius:10px;padding:16px;margin-bottom:14px;">
-            <div style="font-size:13px;font-weight:600;color:var(--c-text-2);margin-bottom:12px;">Driver ${i + 1}</div>
+        <div style="border:1px solid var(--c-border);border-radius:12px;padding:18px;margin-bottom:14px;background:var(--c-surface-2,#1a1a2e08);">
+            <div style="font-size:13px;font-weight:700;color:var(--c-primary,#6366f1);margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+                <span style="background:var(--c-primary,#6366f1);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">${i+1}</span>
+                Driver ${i+1} Requirements
+            </div>
             <div class="form-grid">
+
                 <div class="form-group">
-                    <label>Full Name</label>
-                    <input class="form-control" placeholder="Driver full name" value="${escHtml(d.name)}"
-                        oninput="_driverDetails[${i}].name = this.value">
+                    <label>License Type Required</label>
+                    <div class="radio-group">
+                        <label class="radio-opt">
+                            <input type="radio" name="dr_license_${i}" value="CDL" ${d.license_type==='CDL'?'checked':''}
+                                onchange="_driverDetails[${i}].license_type=this.value; _driverDetails[${i}].cdl_class=''; renderDriverRows()"> CDL
+                        </label>
+                        <label class="radio-opt">
+                            <input type="radio" name="dr_license_${i}" value="Non-CDL" ${d.license_type==='Non-CDL'?'checked':''}
+                                onchange="_driverDetails[${i}].license_type=this.value; _driverDetails[${i}].cdl_class=''; renderDriverRows()"> Non-CDL
+                        </label>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Phone</label>
-                    <input class="form-control" placeholder="+1 (555) 000-0000" value="${escHtml(d.phone)}"
-                        oninput="_driverDetails[${i}].phone = this.value">
-                </div>
-                <div class="form-group">
-                    <label>License Number</label>
-                    <input class="form-control" placeholder="e.g. D1234567" value="${escHtml(d.license_number)}"
-                        oninput="_driverDetails[${i}].license_number = this.value">
-                </div>
+
+                ${d.license_type === 'CDL' ? `
                 <div class="form-group">
                     <label>CDL Class</label>
-                    <select class="form-control" onchange="_driverDetails[${i}].cdl_class = this.value">
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="dr_cdl_${i}" value="A" ${d.cdl_class==='A'?'checked':''} onchange="_driverDetails[${i}].cdl_class=this.value"> Class A</label>
+                        <label class="radio-opt"><input type="radio" name="dr_cdl_${i}" value="B" ${d.cdl_class==='B'?'checked':''} onchange="_driverDetails[${i}].cdl_class=this.value"> Class B</label>
+                        <label class="radio-opt"><input type="radio" name="dr_cdl_${i}" value="C" ${d.cdl_class==='C'?'checked':''} onchange="_driverDetails[${i}].cdl_class=this.value"> Class C</label>
+                    </div>
+                </div>` : '<div class="form-group"></div>'}
+
+                <div class="form-group">
+                    <label>Truck Year</label>
+                    <input class="form-control" placeholder="e.g. 2021" maxlength="4" value="${escHtml(d.truck_year)}"
+                        oninput="_driverDetails[${i}].truck_year=this.value">
+                </div>
+
+                <div class="form-group">
+                    <label>Make</label>
+                    <input class="form-control" placeholder="e.g. Kenworth" value="${escHtml(d.truck_make)}"
+                        oninput="_driverDetails[${i}].truck_make=this.value">
+                </div>
+
+                <div class="form-group">
+                    <label>Model</label>
+                    <input class="form-control" placeholder="e.g. T680" value="${escHtml(d.truck_model)}"
+                        oninput="_driverDetails[${i}].truck_model=this.value">
+                </div>
+
+                <div class="form-group">
+                    <label>Transmission</label>
+                    <select class="form-control" onchange="_driverDetails[${i}].transmission=this.value">
                         <option value="">— Select —</option>
-                        <option value="A" ${d.cdl_class==='A'?'selected':''}>Class A</option>
-                        <option value="B" ${d.cdl_class==='B'?'selected':''}>Class B</option>
-                        <option value="C" ${d.cdl_class==='C'?'selected':''}>Class C</option>
-                        <option value="Non-CDL" ${d.cdl_class==='Non-CDL'?'selected':''}>Non-CDL</option>
+                        <option value="Automatic" ${d.transmission==='Automatic'?'selected':''}>Automatic</option>
+                        <option value="Manual" ${d.transmission==='Manual'?'selected':''}>Manual</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label>ELD Installed?</label>
+                    <div class="radio-group">
+                        <label class="radio-opt"><input type="radio" name="dr_eld_${i}" value="Yes" ${d.eld_installed==='Yes'?'checked':''} onchange="_driverDetails[${i}].eld_installed=this.value"> Yes</label>
+                        <label class="radio-opt"><input type="radio" name="dr_eld_${i}" value="No"  ${d.eld_installed==='No'?'checked':''}  onchange="_driverDetails[${i}].eld_installed=this.value"> No</label>
+                    </div>
+                </div>
+
             </div>
         </div>
     `).join('');
 }
     
-// Conditional fields
-function onLicenseChange() {
-    const cdl = getRadio('license_type') === 'CDL';
-    document.getElementById('cdl-class-wrap').style.display = cdl ? '' : 'none';
-    if (!cdl) document.querySelectorAll('input[name="cdl_class"]').forEach(r => r.checked = false);
-}
-
 const COMP_LABELS = {
     'Mileage Rate': { label: 'Rate ($/mile)', placeholder: 'e.g. 0.55' },
     'Hourly Rate':  { label: 'Rate ($/hr)',   placeholder: 'e.g. 22.50' },
@@ -745,16 +784,21 @@ function renderDrawer(lead, activities) {
         </div>
     </div>
 
-    <!-- Truck Details -->
+${Array.isArray(lead.driver_details) && lead.driver_details.length ? `
     <div class="drawer-section">
-        <div class="section-label">Truck Details</div>
-        <div class="detail-grid">
-            <div class="detail-item"><div class="di-label">Year</div><div class="di-value">${val(lead.truck_year)}</div></div>
-            <div class="detail-item"><div class="di-label">Make</div><div class="di-value">${val(lead.truck_make)}</div></div>
-            <div class="detail-item"><div class="di-label">Model</div><div class="di-value">${val(lead.truck_model)}</div></div>
-            <div class="detail-item"><div class="di-label">Transmission</div><div class="di-value">${val(lead.transmission)}</div></div>
-<div class="detail-item"><div class="di-label">ELD Installed</div><div class="di-value">${bool(lead.eld_installed)}</div></div>
-        </div>
+        <div class="section-label">Driver & Truck Requirements</div>
+        ${lead.driver_details.map((d, i) => `
+            <div style="border:1px solid var(--c-border);border-radius:10px;padding:14px;margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:700;color:var(--c-primary,#6366f1);margin-bottom:10px;">Driver ${i+1}</div>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="di-label">License Required</div><div class="di-value">${val(d.license_type)}${d.cdl_class ? ` — Class ${d.cdl_class}` : ''}</div></div>
+                    <div class="detail-item"><div class="di-label">Truck Year</div><div class="di-value">${val(d.truck_year)}</div></div>
+                    <div class="detail-item"><div class="di-label">Make</div><div class="di-value">${val(d.truck_make)}</div></div>
+                    <div class="detail-item"><div class="di-label">Model</div><div class="di-value">${val(d.truck_model)}</div></div>
+                    <div class="detail-item"><div class="di-label">Transmission</div><div class="di-value">${val(d.transmission)}</div></div>
+                    <div class="detail-item"><div class="di-label">ELD Installed</div><div class="di-value">${val(d.eld_installed)}</div></div>
+                </div>
+            </div>`).join('')}
         ${Array.isArray(lead.truck_images) && lead.truck_images.length ? `
             <div style="margin-top:14px;">
                 <div class="di-label" style="margin-bottom:8px;">Truck Pictures</div>
@@ -762,21 +806,6 @@ function renderDrawer(lead, activities) {
                     ${lead.truck_images.map(url => `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);"></a>`).join('')}
                 </div>
             </div>` : ''}
-    </div>
-
-    ${Array.isArray(lead.driver_details) && lead.driver_details.length ? `
-    <div class="drawer-section">
-        <div class="section-label">Driver Details</div>
-        ${lead.driver_details.map((d, i) => `
-            <div style="border:1px solid var(--c-border);border-radius:10px;padding:14px;margin-bottom:10px;">
-                <div style="font-size:12px;font-weight:600;color:var(--c-text-2);margin-bottom:8px;">Driver ${i+1}</div>
-                <div class="detail-grid">
-                    <div class="detail-item"><div class="di-label">Name</div><div class="di-value">${val(d.name)}</div></div>
-                    <div class="detail-item"><div class="di-label">Phone</div><div class="di-value">${val(d.phone)}</div></div>
-                    <div class="detail-item"><div class="di-label">License #</div><div class="di-value">${val(d.license_number)}</div></div>
-                    <div class="detail-item"><div class="di-label">CDL Class</div><div class="di-value">${val(d.cdl_class)}</div></div>
-                </div>
-            </div>`).join('')}
     </div>` : ''}
 
     <!-- Compensation & Employment -->
