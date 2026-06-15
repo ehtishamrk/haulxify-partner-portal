@@ -418,18 +418,6 @@ const HEARTBEAT_GRACE = 8000;
 let _heartbeatTimer = null;
 
 function _startHeartbeat() {
-    const last = parseInt(localStorage.getItem(HEARTBEAT_KEY) || '0', 10);
-    const now  = Date.now();
-
-    if (last && (now - last) > HEARTBEAT_GRACE) {
-        // Previous tab was closed without logout
-        sb.auth.signOut().then(() => {
-            localStorage.removeItem(HEARTBEAT_KEY);
-            redirectToLogin();
-        });
-        return;
-    }
-
     localStorage.setItem(HEARTBEAT_KEY, Date.now().toString());
 
     _heartbeatTimer = setInterval(() => {
@@ -438,6 +426,23 @@ function _startHeartbeat() {
         }
     }, HEARTBEAT_MS);
 }
+
+// ── Runs immediately on every page load, BEFORE checkAuth ──
+(async () => {
+    const last = parseInt(localStorage.getItem(HEARTBEAT_KEY) || '0', 10);
+    const now  = Date.now();
+
+    if (last && (now - last) > HEARTBEAT_GRACE) {
+        // Tab was closed without logout — kill the session now
+        localStorage.removeItem(HEARTBEAT_KEY);
+        await sb.auth.signOut();
+        // Only redirect if we're not already on the login page
+        const path = window.location.pathname;
+        if (!path.endsWith('index.html') && path !== '/') {
+            window.location.href = 'index.html';
+        }
+    }
+})();
 
 function _stopHeartbeat() {
     clearInterval(_heartbeatTimer);
