@@ -393,15 +393,13 @@ function onModalOverlayClick(e) {
 function clearForm() {
     ['owner_name','company_name','phone','email','company_address',
      'drivers_required','experience_years','specific_requirements',
-     'truck_year','truck_make','truck_model','transmission',
      'compensation_type','compensation_value','commission_per_hire'].forEach(id => {
         const el = document.getElementById('f-' + id);
         if (el) el.value = '';
     });
-document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
-    document.getElementById('cdl-class-wrap').style.display = 'none';
+    document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
     document.getElementById('comp-value-wrap').style.display = 'none';
-// Reset images and drivers
+    // Reset images and drivers
     _pendingImages = []; _existingImages = []; _driverDetails = [];
     renderImagePreviews();
     document.getElementById('driver-rows').innerHTML = '';
@@ -419,10 +417,6 @@ function populateForm(l) {
     set('drivers_required', l.drivers_required);
     set('experience_years', l.experience_years);
     set('specific_requirements', l.specific_requirements);
-    set('truck_year', l.truck_year);
-    set('truck_make', l.truck_make);
-    set('truck_model', l.truck_model);
-    set('transmission', l.transmission);
     set('commission_per_hire', l.commission_per_hire);
 
     const radio = (name, val) => {
@@ -430,24 +424,22 @@ function populateForm(l) {
         const el = document.querySelector(`input[name="${name}"][value="${val}"]`);
         if (el) el.checked = true;
     };
-    radio('license_type', l.license_type);
-    radio('cdl_class', l.cdl_class);
     radio('route_type', l.route_type);
-    radio('eld_installed', l.eld_installed === true ? 'true' : l.eld_installed === false ? 'false' : null);
-    radio('pictures_requested', l.pictures_requested === true ? 'true' : l.pictures_requested === false ? 'false' : null);
     radio('employment_classification', l.employment_classification);
 
-    if (l.license_type === 'CDL') document.getElementById('cdl-class-wrap').style.display = '';
     // Populate existing images
     _existingImages = Array.isArray(l.truck_images) ? [...l.truck_images] : [];
     _pendingImages  = [];
     renderImagePreviews();
+
     // Populate driver details
     _driverDetails = Array.isArray(l.driver_details) ? l.driver_details.map(d => ({...d})) : [];
     if (_driverDetails.length) {
-        document.getElementById('driver-details-section').style.display = '';
+        const allBar = document.getElementById('apply-all-bar');
+        if (allBar) allBar.style.display = _driverDetails.length > 1 ? '' : 'none';
         renderDriverRows();
     }
+
     if (l.compensation_type) {
         set('compensation_type', l.compensation_type);
         set('compensation_value', l.compensation_value);
