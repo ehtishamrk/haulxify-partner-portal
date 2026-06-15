@@ -92,9 +92,9 @@
             </div>
         </div>
 
-        <!-- SECTION 2: Driver Requirements -->
+ <!-- SECTION 2: Driver & Truck Requirements -->
         <div class="form-section">
-            <div class="form-section-title">Driver Requirements</div>
+            <div class="form-section-title">Driver & Truck Requirements</div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Number of Drivers Required</label>
@@ -104,24 +104,6 @@
                     <label>Years of Experience Required</label>
                     <input id="f-experience_years" class="form-control" type="number" min="0" placeholder="e.g. 2">
                 </div>
-
-                <div class="form-group">
-                    <label>License Type</label>
-                    <div class="radio-group">
-                        <label class="radio-opt"><input type="radio" name="license_type" value="CDL" onchange="onLicenseChange()"> CDL</label>
-                        <label class="radio-opt"><input type="radio" name="license_type" value="Non-CDL" onchange="onLicenseChange()"> Non-CDL</label>
-                    </div>
-                </div>
-
-                <div class="form-group" id="cdl-class-wrap" style="display:none">
-                    <label>CDL Class</label>
-                    <div class="radio-group">
-                        <label class="radio-opt"><input type="radio" name="cdl_class" value="A"> Class A</label>
-                        <label class="radio-opt"><input type="radio" name="cdl_class" value="B"> Class B</label>
-                        <label class="radio-opt"><input type="radio" name="cdl_class" value="C"> Class C</label>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label>Route Type</label>
                     <div class="radio-group">
@@ -129,66 +111,67 @@
                         <label class="radio-opt"><input type="radio" name="route_type" value="Regional"> Regional</label>
                     </div>
                 </div>
-
                 <div class="form-group full">
                     <label>Specific Requirements</label>
                     <textarea id="f-specific_requirements" class="form-control"
-                        placeholder="Ethnicity requirements, special permits (HazMat, Tanker, TWIC), endorsements, background restrictions, etc."
+                        placeholder="Special permits (HazMat, Tanker, TWIC), endorsements, background restrictions, etc."
                         rows="3"></textarea>
                 </div>
             </div>
-        </div>
 
-<!-- SECTION: Driver Details -->
-        <div class="form-section" id="driver-details-section" style="display:none">
-            <div class="form-section-title">Driver Details</div>
-            <div id="driver-rows"></div>
-        </div>
-        
-        <!-- SECTION 3: Truck Details -->
-        <div class="form-section">
-            <div class="form-section-title">Truck Details</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Truck Year</label>
-                    <input id="f-truck_year" class="form-control" placeholder="e.g. 2021" maxlength="4">
-                </div>
-                <div class="form-group">
-                    <label>Make</label>
-                    <input id="f-truck_make" class="form-control" placeholder="e.g. Kenworth">
-                </div>
-                <div class="form-group">
-                    <label>Model</label>
-                    <input id="f-truck_model" class="form-control" placeholder="e.g. T680">
-                </div>
-                <div class="form-group">
-                    <label>Transmission</label>
-                    <select id="f-transmission" class="form-control">
-                        <option value="">— Select —</option>
-                        <option value="Automatic">Automatic</option>
-                        <option value="Manual">Manual</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>ELD Installed?</label>
-                    <div class="radio-group">
-                        <label class="radio-opt"><input type="radio" name="eld_installed" value="true"> Yes</label>
-                        <label class="radio-opt"><input type="radio" name="eld_installed" value="false"> No</label>
+            <!-- Apply to All bar — hidden until count > 1 -->
+            <div id="apply-all-bar" style="display:none;background:var(--c-surface-2,#1e1e32);border:1px solid var(--c-border);border-radius:10px;padding:14px 16px;margin-top:16px;">
+                <div style="font-size:12px;font-weight:700;color:var(--c-text-2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">⚡ Apply to All Drivers</div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">License Type</div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('license_type','CDL')">CDL</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('license_type','Non-CDL')">Non-CDL</button>
+                        </div>
                     </div>
-                </div>
-
-<div class="form-group full">
-                    <label>Truck Pictures</label>
-                    <div id="truck-image-upload-area" style="border:2px dashed var(--c-border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s;" onclick="document.getElementById('truck-image-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--c-primary)'" ondragleave="this.style.borderColor='var(--c-border)'" ondrop="onImageDrop(event)">
-                        <div style="font-size:28px;margin-bottom:6px;">📷</div>
-                        <div style="font-size:13px;color:var(--c-text-2);">Click or drag & drop truck images here</div>
-                        <div style="font-size:11px;color:var(--c-text-3);margin-top:4px;">JPG, PNG, WEBP — max 5MB each</div>
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">CDL Class</div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('cdl_class','A')">A</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('cdl_class','B')">B</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('cdl_class','C')">C</button>
+                        </div>
                     </div>
-                    <input type="file" id="truck-image-input" accept="image/*" multiple style="display:none" onchange="onImageSelect(this.files)">
-                    <div id="truck-image-preview" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">Transmission</div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('transmission','Automatic')">Automatic</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('transmission','Manual')">Manual</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">ELD Installed</div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('eld_installed','Yes')">Yes</button>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="applyAll('eld_installed','No')">No</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">Truck Year</div>
+                        <input id="apply-all-year" class="form-control" style="width:90px;height:34px;font-size:13px;" placeholder="2021" maxlength="4">
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px;width:100%;" onclick="applyAll('truck_year',document.getElementById('apply-all-year').value)">Apply Year</button>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">Make</div>
+                        <input id="apply-all-make" class="form-control" style="width:100px;height:34px;font-size:13px;" placeholder="Kenworth">
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px;width:100%;" onclick="applyAll('truck_make',document.getElementById('apply-all-make').value)">Apply Make</button>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-bottom:4px;">Model</div>
+                        <input id="apply-all-model" class="form-control" style="width:100px;height:34px;font-size:13px;" placeholder="T680">
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:4px;width:100%;" onclick="applyAll('truck_model',document.getElementById('apply-all-model').value)">Apply Model</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- Per-driver rows -->
+            <div id="driver-rows" style="margin-top:16px;"></div>
         </div>
 
         <!-- SECTION 4: Compensation -->
