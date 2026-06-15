@@ -98,7 +98,7 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label>Number of Drivers Required</label>
-                    <input id="f-drivers_required" class="form-control" type="number" min="1" placeholder="e.g. 3">
+                    <input id="f-drivers_required" class="form-control" type="number" min="1" placeholder="e.g. 3" oninput="onDriverCountChange(this.value)">
                 </div>
                 <div class="form-group">
                     <label>Years of Experience Required</label>
@@ -139,6 +139,12 @@
             </div>
         </div>
 
+<!-- SECTION: Driver Details -->
+        <div class="form-section" id="driver-details-section" style="display:none">
+            <div class="form-section-title">Driver Details</div>
+            <div id="driver-rows"></div>
+        </div>
+        
         <!-- SECTION 3: Truck Details -->
         <div class="form-section">
             <div class="form-section-title">Truck Details</div>
@@ -172,12 +178,15 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Pictures Requested?</label>
-                    <div class="radio-group">
-                        <label class="radio-opt"><input type="radio" name="pictures_requested" value="true"> Yes</label>
-                        <label class="radio-opt"><input type="radio" name="pictures_requested" value="false"> No</label>
+<div class="form-group full">
+                    <label>Truck Pictures</label>
+                    <div id="truck-image-upload-area" style="border:2px dashed var(--c-border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s;" onclick="document.getElementById('truck-image-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--c-primary)'" ondragleave="this.style.borderColor='var(--c-border)'" ondrop="onImageDrop(event)">
+                        <div style="font-size:28px;margin-bottom:6px;">📷</div>
+                        <div style="font-size:13px;color:var(--c-text-2);">Click or drag & drop truck images here</div>
+                        <div style="font-size:11px;color:var(--c-text-3);margin-top:4px;">JPG, PNG, WEBP — max 5MB each</div>
                     </div>
+                    <input type="file" id="truck-image-input" accept="image/*" multiple style="display:none" onchange="onImageSelect(this.files)">
+                    <div id="truck-image-preview" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
                 </div>
             </div>
         </div>
@@ -406,9 +415,14 @@ function clearForm() {
         const el = document.getElementById('f-' + id);
         if (el) el.value = '';
     });
-    document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+document.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
     document.getElementById('cdl-class-wrap').style.display = 'none';
     document.getElementById('comp-value-wrap').style.display = 'none';
+    // Reset images and drivers
+    _pendingImages = []; _existingImages = []; _driverDetails = [];
+    renderImagePreviews();
+    document.getElementById('driver-details-section').style.display = 'none';
+    document.getElementById('driver-rows').innerHTML = '';
 }
 
 function populateForm(l) {
@@ -440,6 +454,16 @@ function populateForm(l) {
     radio('employment_classification', l.employment_classification);
 
     if (l.license_type === 'CDL') document.getElementById('cdl-class-wrap').style.display = '';
+    // Populate existing images
+    _existingImages = Array.isArray(l.truck_images) ? [...l.truck_images] : [];
+    _pendingImages  = [];
+    renderImagePreviews();
+    // Populate driver details
+    _driverDetails = Array.isArray(l.driver_details) ? l.driver_details.map(d => ({...d})) : [];
+    if (_driverDetails.length) {
+        document.getElementById('driver-details-section').style.display = '';
+        renderDriverRows();
+    }
     if (l.compensation_type) {
         set('compensation_type', l.compensation_type);
         set('compensation_value', l.compensation_value);
@@ -477,8 +501,8 @@ function collectForm() {
         truck_make:              g('truck_make'),
         truck_model:             g('truck_model'),
         transmission:            g('transmission') || null,
-        eld_installed:           boolRadio('eld_installed'),
-        pictures_requested:      boolRadio('pictures_requested'),
+eld_installed:           boolRadio('eld_installed'),
+        driver_details:          _driverDetails,
         compensation_type:       g('compensation_type') || null,
         compensation_value:      g('compensation_value'),
         employment_classification: getRadio('employment_classification'),
@@ -493,14 +517,22 @@ async function saveLead() {
     const btn = document.getElementById('save-lead-btn');
     btn.disabled = true; btn.textContent = 'Saving…';
 
-    try {
+try {
+        let savedLead;
         if (editingLeadId) {
-            await updateLead(editingLeadId, payload);
-            showToast('Lead updated.', 'success');
+            savedLead = await updateLead(editingLeadId, payload);
         } else {
-            await createLead(payload);
-            showToast('Lead created!', 'success');
+            savedLead = await createLead(payload);
         }
+        // Upload any pending images then save URLs
+        if (_pendingImages.length) {
+            const newUrls = await uploadPendingImages(savedLead.id);
+            const allUrls = [..._existingImages, ...newUrls];
+            await sb.from('leads').update({ truck_images: allUrls }).eq('id', savedLead.id);
+        } else if (editingLeadId) {
+            await sb.from('leads').update({ truck_images: _existingImages }).eq('id', savedLead.id);
+        }
+        showToast(editingLeadId ? 'Lead updated.' : 'Lead created!', 'success');
         closeLeadModal();
         await loadLeads();
         if (openLeadId === editingLeadId) openDrawer(editingLeadId);
@@ -511,6 +543,123 @@ async function saveLead() {
     }
 }
 
+// ─── TRUCK IMAGE UPLOAD ───────────────────────────────────────────────────────
+
+let _pendingImages   = []; // { file, previewUrl } — new uploads not yet saved
+let _existingImages  = []; // URLs already saved in DB
+
+function onImageSelect(files) {
+    Array.from(files).forEach(file => {
+        if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} exceeds 5MB`, 'error'); return; }
+        _pendingImages.push({ file, previewUrl: URL.createObjectURL(file) });
+    });
+    renderImagePreviews();
+    document.getElementById('truck-image-input').value = '';
+}
+
+function onImageDrop(e) {
+    e.preventDefault();
+    document.getElementById('truck-image-upload-area').style.borderColor = 'var(--c-border)';
+    onImageSelect(e.dataTransfer.files);
+}
+
+function removeExistingImage(idx) {
+    _existingImages.splice(idx, 1);
+    renderImagePreviews();
+}
+
+function removePendingImage(idx) {
+    URL.revokeObjectURL(_pendingImages[idx].previewUrl);
+    _pendingImages.splice(idx, 1);
+    renderImagePreviews();
+}
+
+function renderImagePreviews() {
+    const wrap = document.getElementById('truck-image-preview');
+    if (!wrap) return;
+    wrap.innerHTML = [
+        ..._existingImages.map((url, i) => `
+            <div style="position:relative;width:90px;height:90px;">
+                <img src="${url}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);">
+                <button onclick="removeExistingImage(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:20px;text-align:center;padding:0;">✕</button>
+            </div>`),
+        ..._pendingImages.map((img, i) => `
+            <div style="position:relative;width:90px;height:90px;">
+                <img src="${img.previewUrl}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);opacity:.85;">
+                <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);color:#fff;font-size:9px;text-align:center;border-radius:0 0 8px 8px;padding:2px;">uploading…</div>
+                <button onclick="removePendingImage(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:20px;text-align:center;padding:0;">✕</button>
+            </div>`)
+    ].join('') || '<span style="font-size:12px;color:var(--c-text-3);">No images added yet.</span>';
+}
+
+async function uploadPendingImages(leadId) {
+    const uploaded = [];
+    for (const img of _pendingImages) {
+        const ext  = img.file.name.split('.').pop();
+        const path = `${leadId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await sb.storage.from('truck-images').upload(path, img.file);
+        if (error) { showToast(`Upload failed: ${img.file.name}`, 'error'); continue; }
+        const { data: { publicUrl } } = sb.storage.from('truck-images').getPublicUrl(path);
+        uploaded.push(publicUrl);
+    }
+    _pendingImages = [];
+    return uploaded;
+}
+
+// ─── DRIVER DETAILS ROWS ──────────────────────────────────────────────────────
+
+let _driverDetails = []; // array of { name, phone, license_number, cdl_class }
+
+function onDriverCountChange(val) {
+    const n = parseInt(val) || 0;
+    const section = document.getElementById('driver-details-section');
+
+    if (n < 1) { section.style.display = 'none'; _driverDetails = []; return; }
+
+    // Grow or shrink array
+    while (_driverDetails.length < n) _driverDetails.push({ name:'', phone:'', license_number:'', cdl_class:'' });
+    _driverDetails = _driverDetails.slice(0, n);
+
+    section.style.display = '';
+    renderDriverRows();
+}
+
+function renderDriverRows() {
+    const wrap = document.getElementById('driver-rows');
+    wrap.innerHTML = _driverDetails.map((d, i) => `
+        <div style="border:1px solid var(--c-border);border-radius:10px;padding:16px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:600;color:var(--c-text-2);margin-bottom:12px;">Driver ${i + 1}</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input class="form-control" placeholder="Driver full name" value="${escHtml(d.name)}"
+                        oninput="_driverDetails[${i}].name = this.value">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input class="form-control" placeholder="+1 (555) 000-0000" value="${escHtml(d.phone)}"
+                        oninput="_driverDetails[${i}].phone = this.value">
+                </div>
+                <div class="form-group">
+                    <label>License Number</label>
+                    <input class="form-control" placeholder="e.g. D1234567" value="${escHtml(d.license_number)}"
+                        oninput="_driverDetails[${i}].license_number = this.value">
+                </div>
+                <div class="form-group">
+                    <label>CDL Class</label>
+                    <select class="form-control" onchange="_driverDetails[${i}].cdl_class = this.value">
+                        <option value="">— Select —</option>
+                        <option value="A" ${d.cdl_class==='A'?'selected':''}>Class A</option>
+                        <option value="B" ${d.cdl_class==='B'?'selected':''}>Class B</option>
+                        <option value="C" ${d.cdl_class==='C'?'selected':''}>Class C</option>
+                        <option value="Non-CDL" ${d.cdl_class==='Non-CDL'?'selected':''}>Non-CDL</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+    
 // Conditional fields
 function onLicenseChange() {
     const cdl = getRadio('license_type') === 'CDL';
@@ -621,10 +770,31 @@ function renderDrawer(lead, activities) {
             <div class="detail-item"><div class="di-label">Make</div><div class="di-value">${val(lead.truck_make)}</div></div>
             <div class="detail-item"><div class="di-label">Model</div><div class="di-value">${val(lead.truck_model)}</div></div>
             <div class="detail-item"><div class="di-label">Transmission</div><div class="di-value">${val(lead.transmission)}</div></div>
-            <div class="detail-item"><div class="di-label">ELD Installed</div><div class="di-value">${bool(lead.eld_installed)}</div></div>
-            <div class="detail-item"><div class="di-label">Pictures Requested</div><div class="di-value">${bool(lead.pictures_requested)}</div></div>
+<div class="detail-item"><div class="di-label">ELD Installed</div><div class="di-value">${bool(lead.eld_installed)}</div></div>
         </div>
+        ${Array.isArray(lead.truck_images) && lead.truck_images.length ? `
+            <div style="margin-top:14px;">
+                <div class="di-label" style="margin-bottom:8px;">Truck Pictures</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    ${lead.truck_images.map(url => `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);"></a>`).join('')}
+                </div>
+            </div>` : ''}
     </div>
+
+    ${Array.isArray(lead.driver_details) && lead.driver_details.length ? `
+    <div class="drawer-section">
+        <div class="section-label">Driver Details</div>
+        ${lead.driver_details.map((d, i) => `
+            <div style="border:1px solid var(--c-border);border-radius:10px;padding:14px;margin-bottom:10px;">
+                <div style="font-size:12px;font-weight:600;color:var(--c-text-2);margin-bottom:8px;">Driver ${i+1}</div>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="di-label">Name</div><div class="di-value">${val(d.name)}</div></div>
+                    <div class="detail-item"><div class="di-label">Phone</div><div class="di-value">${val(d.phone)}</div></div>
+                    <div class="detail-item"><div class="di-label">License #</div><div class="di-value">${val(d.license_number)}</div></div>
+                    <div class="detail-item"><div class="di-label">CDL Class</div><div class="di-value">${val(d.cdl_class)}</div></div>
+                </div>
+            </div>`).join('')}
+    </div>` : ''}
 
     <!-- Compensation & Employment -->
     <div class="drawer-section">
