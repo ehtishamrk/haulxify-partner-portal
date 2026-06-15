@@ -601,12 +601,21 @@ function renderSidebar(filter = '') {
         html += groups.map(c => convItem(c)).join('');
     }
 
+    // Always show DM section with + New Message button
+    html += `<div class="sidebar-section-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:10px;">
+        Direct Messages
+        <button onclick="showNewDMPicker()" style="background:none;border:none;color:var(--c-accent);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;" title="New direct message">+</button>
+    </div>`;
+
     if (dms.length) {
-        html += `<div class="sidebar-section-label">Direct Messages</div>`;
         html += dms.map(c => convItem(c)).join('');
+    } else if (!filter) {
+        html += `<div style="padding:10px 14px 6px;font-size:12px;color:var(--c-text-3);">No direct messages yet.<br>Click <b>+</b> above to message someone.</div>`;
     }
 
-    if (!filtered.length) html = `<div style="padding:20px;font-size:13px;color:var(--c-text-3);text-align:center;">No conversations</div>`;
+    if (!groups.length && !dms.length && filter) {
+        html = `<div style="padding:20px;font-size:13px;color:var(--c-text-3);text-align:center;">No results</div>`;
+    }
 
     list.innerHTML = html;
     updateNavBadge();
@@ -1219,7 +1228,42 @@ function closeCallModal() {
     const overlay = document.getElementById('call-overlay');
     if (overlay) overlay.remove();
 }
+async function showNewDMPicker() {
+    // Get all users except yourself that don't already have a DM
+    await loadProfiles();
+    const existingDMUserIds = new Set(
+        allConversations
+            .filter(c => !c.isGroup && c.otherUser)
+            .map(c => c.otherUser.id)
+    );
+    const available = allProfiles.filter(p => p.id !== currentUser.id && !existingDMUserIds.has(p.id));
 
+    const list = document.getElementById('sidebar-list');
+    const rm_back = list.innerHTML;
+
+    let html = `<div style="padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--c-border);">
+        <button onclick="renderSidebar()" style="background:none;border:none;color:var(--c-text-3);cursor:pointer;font-size:20px;line-height:1;">←</button>
+        <span style="font-size:13px;font-weight:600;color:var(--c-text);">New Message</span>
+    </div>`;
+
+    if (!available.length) {
+        html += `<div style="padding:20px;font-size:13px;color:var(--c-text-3);text-align:center;">You already have a DM with everyone.</div>`;
+    } else {
+        html += available.map(p => {
+            const rm = ROLE_META[p.role] || { label: p.role, color: '#6b7280' };
+            const initials = getInitials(p.full_name);
+            return `<div class="conv-item" onclick="openOrCreateDM('${p.id}')">
+                <div class="conv-avatar">${p.avatar_url ? `<img src="${escHtml(p.avatar_url)}">` : initials}</div>
+                <div class="conv-info">
+                    <div class="conv-name">${escHtml(p.full_name)}</div>
+                    <div class="conv-preview" style="color:${rm.color};">${rm.label}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    list.innerHTML = html;
+}
 </script>
 </body>
 </html>
