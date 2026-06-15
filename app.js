@@ -44,13 +44,16 @@ async function checkAuth(allowedRoles = null) {
 currentUser    = session.user;
         currentProfile = profile;
 
-        // Single-session watcher
+// Single-session watcher
         const storedToken = sessionStorage.getItem('ss_token');
         const expectedToken = storedToken || profile.session_token;
         if (!_sessionChannel && expectedToken) {
             _watchSession(session.user.id, expectedToken);
             _activeSessionToken = expectedToken;
         }
+
+        // Tab-close auto logout
+        _startHeartbeat();
 
 // populate nav avatar + dropdown header
 setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
@@ -175,6 +178,7 @@ async function _handleSessionInvalidated() {
 }
 
 async function logout() {
+    _stopHeartbeat();
     await sb.auth.signOut();
     window.location.href = 'index.html';
 }
@@ -405,3 +409,39 @@ document.addEventListener('click', () => {
     const dd = document.getElementById('profile-dropdown');
     if (dd) dd.classList.remove('open');
 });
+// ─── TAB CLOSE AUTO LOGOUT (Heartbeat) ───────────────────────────────────────
+
+const HEARTBEAT_KEY   = 'tab_heartbeat';
+const HEARTBEAT_MS    = 3000;
+const HEARTBEAT_GRACE = 8000;
+
+let _heartbeatTimer = null;
+
+function _startHeartbeat() {
+    const last = parseInt(localStorage.getItem(HEARTBEAT_KEY) || '0', 10);
+    const now  = Date.now();
+
+    if (last && (now - last) > HEARTBEAT_GRACE) {
+        // Previous tab was closed without logout
+        sb.auth.signOut().then(() => {
+            localStorage.removeItem(HEARTBEAT_KEY);
+            redirectToLogin();
+        });
+        return;
+    }
+
+    localStorage.setItem(HEARTBEAT_KEY, Date.now().toString());
+
+    _heartbeatTimer = setInterval(() => {
+        if (document.visibilityState !== 'hidden') {
+            localStorage.setItem(HEARTBEAT_KEY, Date.now().toString());
+        }
+    }, HEARTBEAT_MS);
+}
+
+function _stopHeartbeat() {
+    clearInterval(_heartbeatTimer);
+    localStorage.removeItem(HEARTBEAT_KEY);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
