@@ -105,6 +105,10 @@
                     </div>
                 </div>
                 <div class="profile-form-grid">
+                    <div class="profile-field" style="grid-column: 1 / -1;">
+                        <label class="profile-label">Current Password</label>
+                        <input class="profile-input" type="password" id="field-current-password" placeholder="Enter your current password">
+                    </div>
                     <div class="profile-field">
                         <label class="profile-label">New Password</label>
                         <input class="profile-input" type="password" id="field-new-password" placeholder="Min. 8 characters">
@@ -195,14 +199,29 @@ async function saveEmergencyContact() {
 }
 
 async function changePassword() {
-    const np = document.getElementById('field-new-password').value;
-    const cp = document.getElementById('field-confirm-password').value;
-    if (np.length < 8) return showToast('Password must be at least 8 characters', 'error');
-    if (np !== cp)     return showToast('Passwords do not match', 'error');
+    const currentPw = document.getElementById('field-current-password').value;
+    const np        = document.getElementById('field-new-password').value;
+    const cp        = document.getElementById('field-confirm-password').value;
+    if (!currentPw)    return showToast('Please enter your current password', 'error');
+    if (np.length < 8) return showToast('New password must be at least 8 characters', 'error');
+    if (np !== cp)     return showToast('New passwords do not match', 'error');
+    if (np === currentPw) return showToast('New password must be different from current', 'error');
+
+    // Verify old password by re-authenticating
+    const { data: { session } } = await sb.auth.getSession();
+    const email = session?.user?.email;
+    if (!email) return showToast('Session error — please reload', 'error');
+
+    const { error: verifyErr } = await sb.auth.signInWithPassword({ email, password: currentPw });
+    if (verifyErr) return showToast('Current password is incorrect', 'error');
+
+    // Old password verified — update to new password
     const { error } = await sb.auth.updateUser({ password: np });
     if (error) return showToast('Failed: ' + error.message, 'error');
-    document.getElementById('field-new-password').value    = '';
-    document.getElementById('field-confirm-password').value = '';
+
+    document.getElementById('field-current-password').value = '';
+    document.getElementById('field-new-password').value     = '';
+    document.getElementById('field-confirm-password').value  = '';
     showToast('Password updated successfully');
 }
 
