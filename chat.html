@@ -608,8 +608,6 @@ let onlineUsers       = new Set();
 let unreadCounts      = {};
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-let currentProfile = null;
-
 document.addEventListener('DOMContentLoaded', async () => {
     await loadNav();
     const profile = await checkAuth();
