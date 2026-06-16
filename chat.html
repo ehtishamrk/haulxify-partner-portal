@@ -728,9 +728,9 @@ function convItem(c) {
 
     return `<div class="conv-item ${isActive ? 'active' : ''}" onclick="openConversation('${c.id}')">
         <div class="conv-avatar" style="${c.isGroup ? 'background:var(--c-accent-g);color:var(--c-accent);' : ''}">
-            ${c.isGroup
+${c.isGroup
                 ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
-                : `${initials}${isOnline ? '<div class="online-dot"></div>' : ''}`
+                : `${c.otherUser?.avatar_url ? `<img src="${escHtml(c.otherUser.avatar_url)}">` : initials}${isOnline ? '<div class="online-dot"></div>' : ''}`
             }
         </div>
         <div class="conv-info">
