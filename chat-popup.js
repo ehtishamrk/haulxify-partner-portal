@@ -177,7 +177,7 @@ window.toggleChatPopup = function() {
 
 // ── Load Data ─────────────────────────────────────────────────────────────────
 async function initPopupData() {
-    if (!window.currentUser) return;
+    if (!currentUser) return;
 
     const [{ data: profiles }, { data: convs }] = await Promise.all([
         sb.from('profiles').select('id,full_name,role,avatar_url').eq('is_active', true),
@@ -496,7 +496,7 @@ window.popupInitiateCall = function() {
 
 // ── Boot after auth is ready ──────────────────────────────────────────────────
 function waitForAuth() {
-    if (window.currentUser && window.sb) {
+    if (currentUser && sb) {
         subscribeAllMessages();
         return;
     }
