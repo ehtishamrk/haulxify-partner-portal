@@ -462,29 +462,35 @@ function subscribeAllMessages() {
         .subscribe();
 }
 
-// ── Call from popup (delegates to chat.html call modal if open, else shows inline) ──
+// ── Call from popup ───────────────────────────────────────────────────────────
 window.popupInitiateCall = function() {
     const conv = _popupConvs.find(c => c.id === _popupConvId);
     if (!conv) return;
-    // If chat.html's initiateCall exists (user is on chat page), use it
     if (typeof initiateCall === 'function') { initiateCall(); return; }
-    // Otherwise show the same call modal inline
     const initials = popupInitials(conv.displayName);
     const overlay = document.createElement('div');
-    overlay.className = 'call-overlay';
     overlay.id = 'popup-call-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-    overlay.innerHTML = \`
-        <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:24px;padding:40px 32px;text-align:center;width:300px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-            <div style="width:80px;height:80px;border-radius:50%;background:var(--c-accent-g);border:3px solid var(--c-accent);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--c-accent);margin:0 auto 14px;animation:callPulse 2s infinite;">\${conv.otherUser?.avatar_url ? \`<img src="\${conv.otherUser.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">\` : initials}</div>
-            <div style="font-size:18px;font-weight:600;color:var(--c-text);margin-bottom:4px;">\${escHtml(conv.displayName)}</div>
-            <div style="font-size:13px;color:var(--c-text-3);margin-bottom:28px;">Calling…</div>
-            <div style="display:flex;justify-content:center;">
-                <button onclick="document.getElementById('popup-call-overlay').remove()" style="width:58px;height:58px;border-radius:50%;background:#ef4444;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 14px rgba(239,68,68,.3);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 4.69 12"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                </button>
-            </div>
-        </div>\`;
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--c-surface);border:1px solid var(--c-border);border-radius:24px;padding:40px 32px;text-align:center;width:300px;';
+    const avatarDiv = document.createElement('div');
+    avatarDiv.style.cssText = 'width:80px;height:80px;border-radius:50%;background:var(--c-accent-g);border:3px solid var(--c-accent);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--c-accent);margin:0 auto 14px;';
+    avatarDiv.textContent = initials;
+    const nameDiv = document.createElement('div');
+    nameDiv.style.cssText = 'font-size:18px;font-weight:600;color:var(--c-text);margin-bottom:4px;';
+    nameDiv.textContent = conv.displayName;
+    const statusDiv = document.createElement('div');
+    statusDiv.style.cssText = 'font-size:13px;color:var(--c-text-3);margin-bottom:28px;';
+    statusDiv.textContent = 'Calling...';
+    const endBtn = document.createElement('button');
+    endBtn.style.cssText = 'width:58px;height:58px;border-radius:50%;background:#ef4444;border:none;cursor:pointer;color:#fff;font-size:22px;';
+    endBtn.textContent = '✕';
+    endBtn.onclick = function() { overlay.remove(); };
+    box.appendChild(avatarDiv);
+    box.appendChild(nameDiv);
+    box.appendChild(statusDiv);
+    box.appendChild(endBtn);
+    overlay.appendChild(box);
     document.body.appendChild(overlay);
 };
 
