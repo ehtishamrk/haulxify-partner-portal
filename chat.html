@@ -566,6 +566,32 @@
 
 </div>
 
+    <!-- Create Group Modal -->
+<div id="create-group-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;backdrop-filter:blur(3px);" onclick="if(event.target===this)closeCreateGroupModal()">
+    <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;width:420px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+        <div style="padding:18px 20px;border-bottom:1px solid var(--c-border);display:flex;align-items:center;justify-content:space-between;">
+            <h3 style="font-size:15px;font-weight:600;color:var(--c-text);margin:0;">Create Group Chat</h3>
+            <button onclick="closeCreateGroupModal()" style="background:none;border:none;cursor:pointer;color:var(--c-text-3);font-size:20px;line-height:1;">✕</button>
+        </div>
+        <div style="padding:20px;overflow-y:auto;flex:1;">
+            <div style="margin-bottom:16px;">
+                <label style="font-size:12px;font-weight:600;color:var(--c-text-2);display:block;margin-bottom:6px;">Group Name</label>
+                <input id="group-name-input" class="form-control" placeholder="e.g. Sales Team, Dispatchers…" style="width:100%;">
+            </div>
+            <div>
+                <label style="font-size:12px;font-weight:600;color:var(--c-text-2);display:block;margin-bottom:6px;">Add Members</label>
+                <input id="group-member-search" class="form-control" placeholder="Search people…" oninput="filterGroupMembers(this.value)" style="width:100%;margin-bottom:10px;">
+                <div id="group-selected-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:24px;"></div>
+                <div id="group-member-list" style="display:flex;flex-direction:column;gap:2px;"></div>
+            </div>
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid var(--c-border);display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-ghost" onclick="closeCreateGroupModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="createGroup()" id="create-group-btn">Create Group</button>
+        </div>
+    </div>
+</div>
+
 <input type="file" id="file-input" style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple onchange="onFileSelect(this.files)">
 
 <script src="app.js"></script>
@@ -1333,6 +1359,102 @@ async function showNewDMPicker() {
     }
 
     list.innerHTML = html;
+}
+    // ─── CREATE GROUP ─────────────────────────────────────────────────────────────
+
+let _groupSelectedIds = new Set();
+
+function showCreateGroupModal() {
+    _groupSelectedIds = new Set();
+    document.getElementById('group-name-input').value = '';
+    document.getElementById('group-member-search').value = '';
+    renderGroupMemberList('');
+    renderGroupChips();
+    document.getElementById('create-group-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('group-name-input').focus(), 100);
+}
+
+function closeCreateGroupModal() {
+    document.getElementById('create-group-modal').style.display = 'none';
+}
+
+function renderGroupMemberList(filter) {
+    const others = allProfiles.filter(p =>
+        p.id !== currentUser.id &&
+        p.full_name.toLowerCase().includes(filter.toLowerCase())
+    );
+    const list = document.getElementById('group-member-list');
+    if (!list) return;
+    list.innerHTML = others.map(p => {
+        const rm      = ROLE_META[p.role] || { label: p.role, color: '#6b7280' };
+        const checked = _groupSelectedIds.has(p.id);
+        const init    = getInitials(p.full_name);
+        return '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;" onmouseover="this.style.background=\'var(--c-hover)\'" onmouseout="this.style.background=\'\'">'
+            + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleGroupMember(\'' + p.id + '\',this.checked)" style="width:16px;height:16px;accent-color:var(--c-accent);cursor:pointer;">'
+            + '<div style="width:30px;height:30px;border-radius:50%;background:var(--c-raised);border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--c-text-2);flex-shrink:0;">' + init + '</div>'
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="font-size:13px;color:var(--c-text);">' + escHtml(p.full_name) + '</div>'
+            + '<div style="font-size:11px;color:' + rm.color + ';">' + rm.label + '</div>'
+            + '</div></label>';
+    }).join('') || '<div style="padding:10px;font-size:13px;color:var(--c-text-3);">No users found</div>';
+}
+
+function filterGroupMembers(val) { renderGroupMemberList(val); }
+
+function toggleGroupMember(userId, checked) {
+    if (checked) _groupSelectedIds.add(userId);
+    else _groupSelectedIds.delete(userId);
+    renderGroupChips();
+}
+
+function renderGroupChips() {
+    const wrap = document.getElementById('group-selected-chips');
+    if (!wrap) return;
+    if (!_groupSelectedIds.size) {
+        wrap.innerHTML = '<span style="font-size:12px;color:var(--c-text-3);">No members selected yet</span>';
+        return;
+    }
+    wrap.innerHTML = [..._groupSelectedIds].map(id => {
+        const p = allProfiles.find(x => x.id === id);
+        if (!p) return '';
+        return '<span style="background:var(--c-accent-g);color:var(--c-accent);border:1px solid var(--c-accent);border-radius:20px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:5px;">'
+            + escHtml(p.full_name)
+            + '<button onclick="removeGroupMember(\'' + id + '\')" style="background:none;border:none;cursor:pointer;color:var(--c-accent);font-size:13px;padding:0;line-height:1;">✕</button>'
+            + '</span>';
+    }).join('');
+}
+
+function removeGroupMember(userId) {
+    _groupSelectedIds.delete(userId);
+    renderGroupChips();
+    renderGroupMemberList(document.getElementById('group-member-search').value);
+}
+
+async function createGroup() {
+    const name = document.getElementById('group-name-input').value.trim();
+    if (!name) { showToast('Please enter a group name', 'error'); return; }
+    if (_groupSelectedIds.size < 1) { showToast('Please select at least one member', 'error'); return; }
+    const btn = document.getElementById('create-group-btn');
+    btn.disabled = true; btn.textContent = 'Creating…';
+    try {
+        const { data: conv, error: convErr } = await sb.from('conversations').insert({ type: 'group', name }).select().single();
+        if (convErr || !conv) throw new Error(convErr?.message || 'Failed to create group');
+        const parts = [
+            { conversation_id: conv.id, user_id: currentUser.id },
+            ...[..._groupSelectedIds].map(uid => ({ conversation_id: conv.id, user_id: uid }))
+        ];
+        const { error: pErr } = await sb.from('conversation_participants').insert(parts);
+        if (pErr) throw new Error(pErr.message);
+        showToast('Group "' + name + '" created!', 'success');
+        closeCreateGroupModal();
+        await loadConversations();
+        renderSidebar();
+        openConversation(conv.id);
+    } catch(err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Create Group';
+    }
 }
 </script>
 
