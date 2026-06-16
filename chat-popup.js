@@ -505,6 +505,8 @@ function waitForAuth() {
 
 // ── Init: wait until DOM is ready, then inject popup and wait for auth ────────
 function bootPopup() {
+    // Don't show the popup widget when already on the full chat page
+    if (window.location.pathname.endsWith('chat.html') || window.location.pathname === '/chat') return;
     // Avoid double-init if script somehow loaded twice
     if (window._chatPopupBooted) return;
     window._chatPopupBooted = true;
