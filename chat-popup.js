@@ -3,6 +3,14 @@
 
 (function() {
 
+// Local escHtml fallback in case app.js isn't loaded yet
+function _esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Use app.js escHtml if available, otherwise use local
+function escHtml(s) { return (typeof window.escHtml === 'function' ? window.escHtml : _esc)(s); }
+
 let _popupConvId     = null;
 let _popupChannel    = null;
 let _popupConvs      = [];
@@ -482,19 +490,26 @@ window.popupInitiateCall = function() {
 
 // ── Boot after auth is ready ──────────────────────────────────────────────────
 function waitForAuth() {
-    if (window.currentUser) {
+    if (window.currentUser && window.sb) {
         subscribeAllMessages();
         return;
     }
     setTimeout(waitForAuth, 300);
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { injectPopup(); waitForAuth(); });
-} else {
+// ── Init: wait until DOM is ready, then inject popup and wait for auth ────────
+function bootPopup() {
+    // Avoid double-init if script somehow loaded twice
+    if (window._chatPopupBooted) return;
+    window._chatPopupBooted = true;
     injectPopup();
     waitForAuth();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootPopup);
+} else {
+    bootPopup();
 }
 
 })();
