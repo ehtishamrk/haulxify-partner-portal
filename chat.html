@@ -466,6 +466,71 @@
 .call-topbar-btn:hover { background: #22c55e18; color: #22c55e; border-color: #22c55e55; }
 .call-topbar-btn.active { background: #22c55e; color: #fff; border-color: #22c55e; }
 
+
+/* ── Create Group Modal ──────────────────────────────────────────────────── */
+.modal-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(0,0,0,.5);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(3px);
+}
+.modal-box {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: 16px;
+    width: 420px; max-width: 95vw;
+    max-height: 85vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.modal-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--c-border);
+    display: flex; align-items: center; justify-content: space-between;
+}
+.modal-header h3 { font-size: 15px; font-weight: 600; color: var(--c-text); margin: 0; }
+.modal-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--c-text-3); padding: 4px; border-radius: 6px;
+    display: flex; align-items: center;
+    transition: color .15s;
+}
+.modal-close:hover { color: var(--c-text); }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--c-border);
+    display: flex; gap: 10px; justify-content: flex-end;
+}
+.member-pick-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.member-pick-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    transition: background .12s;
+}
+.member-pick-item:hover { background: var(--c-hover); }
+.member-pick-item input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--c-accent); cursor: pointer; flex-shrink: 0; }
+.member-pick-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--c-raised); border: 1px solid var(--c-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--c-text-2);
+    flex-shrink: 0; overflow: hidden;
+}
+.member-pick-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.member-pick-name { font-size: 13px; color: var(--c-text); flex: 1; }
+.member-pick-role { font-size: 11px; color: var(--c-text-3); }
+.selected-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; min-height: 28px; }
+.selected-chip {
+    background: var(--c-accent-g); color: var(--c-accent);
+    border: 1px solid var(--c-accent)44;
+    border-radius: 20px; padding: 3px 10px;
+    font-size: 12px; font-weight: 500;
+    display: flex; align-items: center; gap: 5px;
+}
+.selected-chip button { background: none; border: none; cursor: pointer; color: var(--c-accent); font-size: 13px; padding: 0; line-height: 1; }
+
 </style>
 </head>
 <body>
@@ -478,6 +543,10 @@
         <div class="sidebar-header">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Chat
+            <button onclick="showCreateGroupModal()" title="Create group" style="margin-left:auto;background:none;border:1px solid var(--c-border);border-radius:7px;color:var(--c-text-2);cursor:pointer;padding:4px 8px;font-size:11px;display:flex;align-items:center;gap:4px;transition:background .15s;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Group
+            </button>
         </div>
         <div class="sidebar-search">
             <input type="search" id="sidebar-search" placeholder="Search conversations…" oninput="filterSidebar(this.value)">
@@ -500,6 +569,7 @@
 <input type="file" id="file-input" style="display:none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple onchange="onFileSelect(this.files)">
 
 <script src="app.js"></script>
+<script src="chat-popup.js"></script>
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 let allConversations  = [];
@@ -1265,5 +1335,34 @@ async function showNewDMPicker() {
     list.innerHTML = html;
 }
 </script>
+
+<!-- Create Group Modal -->
+<div id="create-group-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeCreateGroupModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Create Group Chat</h3>
+            <button class="modal-close" onclick="closeCreateGroupModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom:16px;">
+                <label style="font-size:12px;font-weight:600;color:var(--c-text-2);display:block;margin-bottom:6px;">Group Name</label>
+                <input id="group-name-input" class="form-control" placeholder="e.g. Sales Team, Dispatchers…" style="width:100%;">
+            </div>
+            <div>
+                <label style="font-size:12px;font-weight:600;color:var(--c-text-2);display:block;margin-bottom:4px;">Add Members</label>
+                <input id="group-member-search" class="form-control" placeholder="Search people…" oninput="filterGroupMembers(this.value)" style="width:100%;margin-bottom:8px;">
+                <div class="selected-chips" id="group-selected-chips"></div>
+                <div class="member-pick-list" id="group-member-list"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeCreateGroupModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="createGroup()" id="create-group-btn">Create Group</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
