@@ -833,8 +833,21 @@ ${conv.isGroup && (conv.displayName || '').toLowerCase() !== 'general' && curren
         sub.innerHTML = `<span class="role-pill-sm" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span>`;
     }
 
-    await loadMessages(convId);
+await loadMessages(convId);
     subscribeMessages(convId);
+
+    // Lock input if group is read-only or user has no write permission
+    if (conv.isGroup && currentProfile?.role !== 'super_admin') {
+        const locked = conv.is_readonly || myWritePerms[convId] === false;
+        const input    = document.getElementById('msg-input');
+        const sendBtn  = document.getElementById('send-btn');
+        const attachBtn = document.querySelector('.input-btn:not(.send)');
+        if (locked) {
+            if (input)     { input.disabled = true; input.placeholder = '🔒 Read-only — only admins can send messages.'; input.style.opacity = '.5'; input.style.cursor = 'not-allowed'; }
+            if (sendBtn)   { sendBtn.disabled = true; sendBtn.style.opacity = '.3'; }
+            if (attachBtn) { attachBtn.disabled = true; attachBtn.style.opacity = '.3'; }
+        }
+    }
 }
 
 // ─── MESSAGES ─────────────────────────────────────────────────────────────────
