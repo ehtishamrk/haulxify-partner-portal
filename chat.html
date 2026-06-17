@@ -1586,9 +1586,9 @@ async function confirmDeleteGroup(convId) {
         const panel = document.getElementById('group-settings-panel');
         if (panel) panel.style.right = '-380px';
 
-        // Step 1: delete messages (RLS allows if you own them or are admin; run without error check
-        // since there may be 0 messages — we ignore "no rows" non-errors)
-        await sb.from('messages').delete().eq('conversation_id', convId);
+// Step 1: delete messages
+        const { error: msgErr } = await sb.from('messages').delete().eq('conversation_id', convId);
+        if (msgErr) console.warn('Messages delete warning:', msgErr.message);
 
         // Step 2: delete participants
         const { error: partErr } = await sb.from('conversation_participants').delete().eq('conversation_id', convId);
