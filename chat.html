@@ -836,6 +836,50 @@ ${conv.isGroup && (conv.displayName || '').toLowerCase() !== 'general' && curren
 await loadMessages(convId);
     subscribeMessages(convId);
 
+    subscribeMessages(convId);
+
+    // Subscribe to permission changes for this user in this conversation
+    sb.channel('perms:' + convId)
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'conversation_participants',
+            filter: `user_id=eq.${currentUser.id}`
+        }, (payload) => {
+            const newCanWrite = payload.new.can_write !== false;
+            myWritePerms[payload.new.conversation_id] = newCanWrite;
+            // If this is the active conv, update UI immediately
+            if (payload.new.conversation_id === activeConvId) {
+                const conv2 = allConversations.find(c => c.id === activeConvId);
+                const locked = (conv2?.is_readonly && currentProfile?.role !== 'super_admin') || !newCanWrite;
+                const input    = document.getElementById('msg-input');
+                const sendBtn  = document.getElementById('send-btn');
+                const attachBtn = document.querySelector('.input-btn:not(.send)');
+                if (input)     { input.disabled = locked; input.placeholder = locked ? '🔒 Read-only — only admins can send messages.' : 'Type a message…'; input.style.opacity = locked ? '.5' : '1'; input.style.cursor = locked ? 'not-allowed' : ''; }
+                if (sendBtn)   { sendBtn.disabled = locked; sendBtn.style.opacity = locked ? '.3' : '1'; }
+                if (attachBtn) { attachBtn.disabled = locked; attachBtn.style.opacity = locked ? '.3' : '1'; }
+            }
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'conversations',
+            filter: `id=eq.${convId}`
+        }, (payload) => {
+            const conv2 = allConversations.find(c => c.id === convId);
+            if (conv2) conv2.is_readonly = payload.new.is_readonly;
+            if (convId === activeConvId && currentProfile?.role !== 'super_admin') {
+                const locked = payload.new.is_readonly;
+                const input    = document.getElementById('msg-input');
+                const sendBtn  = document.getElementById('send-btn');
+                const attachBtn = document.querySelector('.input-btn:not(.send)');
+                if (input)     { input.disabled = locked; input.placeholder = locked ? '🔒 Read-only — only admins can send messages.' : 'Type a message…'; input.style.opacity = locked ? '.5' : '1'; input.style.cursor = locked ? 'not-allowed' : ''; }
+                if (sendBtn)   { sendBtn.disabled = locked; sendBtn.style.opacity = locked ? '.3' : '1'; }
+                if (attachBtn) { attachBtn.disabled = locked; attachBtn.style.opacity = locked ? '.3' : '1'; }
+            }
+        })
+        .subscribe();
+
     // Lock input if group is read-only or user has no write permission
     if (conv.isGroup && currentProfile?.role !== 'super_admin') {
         const locked = conv.is_readonly || myWritePerms[convId] === false;
@@ -1668,7 +1712,10 @@ window.toggleGroupReadonly = async function(convId, isReadonly) {
                 .update({ can_write: false })
                 .eq('conversation_id', convId)
                 .in('user_id', nonAdminIds);
-            nonAdminIds.forEach(id => { myWritePerms[convId] = id === currentUser.id ? false : myWritePerms[convId]; });
+            // If current user is non-admin and in this group, mark them as restricted
+if (nonAdminIds.includes(currentUser.id)) {
+    myWritePerms[convId] = false;
+}
         }
     } else {
         await sb.from('conversation_participants')
