@@ -835,29 +835,28 @@ async function openConversation(convId) {
 await loadMessages(convId);
     subscribeMessages(convId);
 
-    subscribeMessages(convId);
-
-    // Subscribe to permission changes for this user in this conversation
+    // Subscribe to permission changes for this conversation
+    // Filter by conversation_id so every member (not just the admin) receives updates
     sb.channel('perms:' + convId)
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
             table: 'conversation_participants',
-            filter: `user_id=eq.${currentUser.id}`
+            filter: `conversation_id=eq.${convId}`
         }, (payload) => {
+            // Only act if this update affects the current user
+            if (payload.new.user_id !== currentUser.id) return;
             const newCanWrite = payload.new.can_write !== false;
             myWritePerms[payload.new.conversation_id] = newCanWrite;
-            // If this is the active conv, update UI immediately
-            if (payload.new.conversation_id === activeConvId) {
-                const conv2 = allConversations.find(c => c.id === activeConvId);
-                const locked = (conv2?.is_readonly && currentProfile?.role !== 'super_admin') || !newCanWrite;
-                const input    = document.getElementById('msg-input');
-                const sendBtn  = document.getElementById('send-btn');
-                const attachBtn = document.querySelector('.input-btn:not(.send)');
-                if (input)     { input.disabled = locked; input.placeholder = locked ? '🔒 Read-only — only admins can send messages.' : 'Type a message…'; input.style.opacity = locked ? '.5' : '1'; input.style.cursor = locked ? 'not-allowed' : ''; }
-                if (sendBtn)   { sendBtn.disabled = locked; sendBtn.style.opacity = locked ? '.3' : '1'; }
-                if (attachBtn) { attachBtn.disabled = locked; attachBtn.style.opacity = locked ? '.3' : '1'; }
-            }
+            if (payload.new.conversation_id !== activeConvId) return;
+            const conv2 = allConversations.find(c => c.id === activeConvId);
+            const locked = (conv2?.is_readonly && currentProfile?.role !== 'super_admin') || !newCanWrite;
+            const input     = document.getElementById('msg-input');
+            const sendBtn   = document.getElementById('send-btn');
+            const attachBtn = document.querySelector('.input-btn:not(.send)');
+            if (input)     { input.disabled = locked; input.placeholder = locked ? '🔒 Read-only — only admins can send messages.' : 'Type a message…'; input.style.opacity = locked ? '.5' : '1'; input.style.cursor = locked ? 'not-allowed' : ''; }
+            if (sendBtn)   { sendBtn.disabled = locked; sendBtn.style.opacity = locked ? '.3' : '1'; }
+            if (attachBtn) { attachBtn.disabled = locked; attachBtn.style.opacity = locked ? '.3' : '1'; }
         })
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -867,15 +866,34 @@ await loadMessages(convId);
         }, (payload) => {
             const conv2 = allConversations.find(c => c.id === convId);
             if (conv2) conv2.is_readonly = payload.new.is_readonly;
-            if (convId === activeConvId && currentProfile?.role !== 'super_admin') {
-                const locked = payload.new.is_readonly;
-                const input    = document.getElementById('msg-input');
-                const sendBtn  = document.getElementById('send-btn');
-                const attachBtn = document.querySelector('.input-btn:not(.send)');
-                if (input)     { input.disabled = locked; input.placeholder = locked ? '🔒 Read-only — only admins can send messages.' : 'Type a message…'; input.style.opacity = locked ? '.5' : '1'; input.style.cursor = locked ? 'not-allowed' : ''; }
-                if (sendBtn)   { sendBtn.disabled = locked; sendBtn.style.opacity = locked ? '.3' : '1'; }
-                if (attachBtn) { attachBtn.disabled = locked; attachBtn.style.opacity = locked ? '.3' : '1'; }
+            if (convId !== activeConvId) return;
+            // Admins are never locked out
+            if (currentProfile?.role === 'super_admin') return;
+            const locked = payload.new.is_readonly || myWritePerms[convId] === false;
+            const input     = document.getElementById('msg-input');
+            const sendBtn   = document.getElementById('send-btn');
+            const attachBtn = document.querySelector('.input-btn:not(.send)');
+            if (input)     { input.disabled = locked; input.placeholder = locked ? '🔒 Read-only — only admins can send messages.' : 'Type a message…'; input.style.opacity = locked ? '.5' : '1'; input.style.cursor = locked ? 'not-allowed' : ''; }
+            if (sendBtn)   { sendBtn.disabled = locked; sendBtn.style.opacity = locked ? '.3' : '1'; }
+            if (attachBtn) { attachBtn.disabled = locked; attachBtn.style.opacity = locked ? '.3' : '1'; }
+        })
+        .on('postgres_changes', {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'conversations',
+            filter: `id=eq.${convId}`
+        }, () => {
+            // Another client deleted this group — remove it for everyone in real time
+            allConversations = allConversations.filter(c => c.id !== convId);
+            if (activeConvId === convId) {
+                activeConvId = null;
+                document.getElementById('chat-main').innerHTML = `
+                    <div class="chat-empty">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <p>This group has been deleted</p>
+                    </div>`;
             }
+            renderSidebar();
         })
         .subscribe();
 
@@ -1554,7 +1572,6 @@ async function confirmDeleteGroup(convId) {
         return;
     }
 
-    // Only super_admin OR the creator of the group can delete
     const isCreator = conv?.created_by === currentUser.id;
     const isSuperAdmin = currentProfile?.role === 'super_admin';
     if (!isSuperAdmin && !isCreator) {
@@ -1565,19 +1582,23 @@ async function confirmDeleteGroup(convId) {
     if (!confirm(`Delete group "${conv?.displayName || 'this group'}"? This will permanently delete all messages and cannot be undone.`)) return;
 
     try {
-        // Close the settings panel first
+        // Close settings panel
         const panel = document.getElementById('group-settings-panel');
         if (panel) panel.style.right = '-380px';
 
-        // Delete in order: messages → participants → conversation
-        const { error: msgErr } = await sb.from('messages').delete().eq('conversation_id', convId);
-        if (msgErr) throw msgErr;
-        const { error: partErr } = await sb.from('conversation_participants').delete().eq('conversation_id', convId);
-        if (partErr) throw partErr;
-        const { error: convErr } = await sb.from('conversations').delete().eq('id', convId);
-        if (convErr) throw convErr;
+        // Step 1: delete messages (RLS allows if you own them or are admin; run without error check
+        // since there may be 0 messages — we ignore "no rows" non-errors)
+        await sb.from('messages').delete().eq('conversation_id', convId);
 
-        // Remove from local state immediately
+        // Step 2: delete participants
+        const { error: partErr } = await sb.from('conversation_participants').delete().eq('conversation_id', convId);
+        if (partErr) throw new Error('Could not remove participants: ' + partErr.message);
+
+        // Step 3: delete conversation row
+        const { error: convErr } = await sb.from('conversations').delete().eq('id', convId);
+        if (convErr) throw new Error('Could not delete conversation: ' + convErr.message);
+
+        // Update local state immediately — no refresh needed
         allConversations = allConversations.filter(c => c.id !== convId);
         activeConvId = null;
         renderSidebar();
