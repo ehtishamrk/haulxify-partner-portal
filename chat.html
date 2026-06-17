@@ -599,6 +599,7 @@
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 let allConversations  = [];
+    let myWritePerms = {};
 let allProfiles       = [];
 let activeConvId      = null;
 let messageChannel    = null;
@@ -663,6 +664,12 @@ async function loadConversations() {
 
     // Load last message + unread for each
     await Promise.all(allConversations.map(loadConvMeta));
+    // Load this user's write permissions per conversation
+    const { data: myParts } = await sb
+        .from('conversation_participants')
+        .select('conversation_id, can_write')
+        .eq('user_id', currentUser.id);
+    (myParts || []).forEach(p => { myWritePerms[p.conversation_id] = p.can_write !== false; });
 }
 
 async function loadConvMeta(conv) {
@@ -781,8 +788,8 @@ async function openConversation(convId) {
                 ${conv.isGroup ? 'Group Call' : 'Audio Call'}
             </button>
             ${conv.isGroup ? `
-            <button class="call-topbar-btn" onclick="openGroupSettings('${conv.id}')" title="Group settings" style="margin-left:4px;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+<button class="call-topbar-btn" onclick="openGroupSettings('${conv.id}')" title="Group settings" style="margin-left:4px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                 Settings
             </button>` : ''}
         </div>
@@ -1013,10 +1020,16 @@ function subscribePresence() {
 async function sendMessage() {
         const conv = allConversations.find(c => c.id === activeConvId);
 
-    // Block if group is in read-only mode and user is not admin
-    if (conv?.is_readonly && currentProfile?.role !== 'super_admin') {
-        showToast('This group is in read-only mode. Only admins can send messages.', 'error');
-        return;
+// Block if group is read-only (whole group) or user has no write permission
+    if (conv?.isGroup && currentProfile?.role !== 'super_admin') {
+        if (conv?.is_readonly) {
+            showToast('This group is read-only. Only admins can send messages.', 'error');
+            return;
+        }
+        if (myWritePerms[activeConvId] === false) {
+            showToast('You don\'t have permission to send messages in this group.', 'error');
+            return;
+        }
     }
     if (!activeConvId) return;
     const input   = document.getElementById('msg-input');
@@ -1631,6 +1644,25 @@ window.toggleGroupReadonly = async function(convId, isReadonly) {
     if (error) { showToast('Failed to update: ' + error.message, 'error'); return; }
     const conv = allConversations.find(c => c.id === convId);
     if (conv) conv.is_readonly = isReadonly;
+    // When enabling read-only: set all non-admin members to can_write = false
+    // When disabling: restore can_write = true for all (admin can then restrict individually)
+    if (isReadonly) {
+        const nonAdminIds = allProfiles
+            .filter(p => p.role !== 'super_admin' && conv?.conversation_participants?.some(cp => cp.user_id === p.id))
+            .map(p => p.id);
+        if (nonAdminIds.length) {
+            await sb.from('conversation_participants')
+                .update({ can_write: false })
+                .eq('conversation_id', convId)
+                .in('user_id', nonAdminIds);
+            nonAdminIds.forEach(id => { myWritePerms[convId] = id === currentUser.id ? false : myWritePerms[convId]; });
+        }
+    } else {
+        await sb.from('conversation_participants')
+            .update({ can_write: true })
+            .eq('conversation_id', convId);
+        myWritePerms[convId] = true;
+    }
     showToast(isReadonly ? 'Read-only mode on' : 'Members can write again', 'success');
 };
 
@@ -1639,12 +1671,22 @@ window.toggleMemberWrite = async function(convId, userId, newCanWrite, btn) {
         .update({ can_write: newCanWrite })
         .eq('conversation_id', convId).eq('user_id', userId);
     if (error) { showToast('Failed: ' + error.message, 'error'); return; }
-    if (btn) {
+if (btn) {
         btn.textContent = newCanWrite ? '✏️ Can write' : '👁 Read only';
         btn.style.color = newCanWrite ? 'var(--c-success,#10b981)' : 'var(--c-text-3)';
         btn.setAttribute('onclick', `toggleMemberWrite('${convId}','${userId}',${!newCanWrite},this)`);
         btn.title = newCanWrite ? 'Can write — click to restrict' : 'Read-only — click to allow';
     }
+    // Keep local permission map in sync
+    myWritePerms[convId] = newCanWrite;
+    // Live-update input if this is the active conv and it's the current user
+    if (convId === activeConvId && userId === currentUser.id) {
+        const input   = document.getElementById('msg-input');
+        const sendBtn = document.getElementById('send-btn');
+        if (input)   { input.disabled = !newCanWrite; input.placeholder = newCanWrite ? 'Type a message…' : '🔒 You can\'t send messages here.'; input.style.opacity = newCanWrite ? '1' : '.5'; }
+        if (sendBtn) { sendBtn.disabled = !newCanWrite; sendBtn.style.opacity = newCanWrite ? '1' : '.3'; }
+    }
+    showToast(newCanWrite ? 'Member can now write' : 'Member set to read-only', 'success');
     showToast(newCanWrite ? 'Member can now write' : 'Member set to read-only', 'success');
 };
 </script>
