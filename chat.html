@@ -775,6 +775,11 @@ async function openConversation(convId) {
     updateNavBadge();
 
     // Build main area
+    const _isGeneral = (conv.displayName || '').toLowerCase() === 'general';
+    const _isSuperAdmin = currentProfile?.role === 'super_admin';
+    const _isCreator = conv.created_by === currentUser?.id;
+    const _canSeeSettings = conv.isGroup && (_isGeneral ? _isSuperAdmin : (_isSuperAdmin || _isCreator));
+
     const main = document.getElementById('chat-main');
     main.innerHTML = `
         <div class="chat-topbar">
@@ -783,24 +788,16 @@ async function openConversation(convId) {
                 <div class="chat-topbar-name">${escHtml(conv.displayName)}</div>
                 <div class="chat-topbar-sub" id="topbar-sub">${conv.isGroup ? 'Group chat' : ''}</div>
             </div>
-<button class="call-topbar-btn" id="call-btn" onclick="initiateCall()" title="${conv.isGroup ? 'Start group call' : 'Audio call'}">
-                <svg width="15" height="15" ...>...</svg>
+            <button class="call-topbar-btn" id="call-btn" onclick="initiateCall()" title="${conv.isGroup ? 'Start group call' : 'Audio call'}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.38 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9A16 16 0 0 0 15 16.09l1.15-.97a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 ${conv.isGroup ? 'Group Call' : 'Audio Call'}
             </button>
-            ${conv.isGroup ? `
-${conv.isGroup && (() => {
-    const isGeneral = (conv.displayName || '').toLowerCase() === 'general';
-    const isSuperAdmin = currentProfile?.role === 'super_admin';
-    const isCreator = conv.created_by === currentUser?.id;
-    // General: only super_admin. Other groups: super_admin OR creator
-    return isGeneral ? isSuperAdmin : (isSuperAdmin || isCreator);
-})() ? `
-<button onclick="openGroupSettings('${conv.id}')" title="Group settings"
-    style="width:34px;height:34px;border-radius:50%;background:none;border:1px solid var(--c-border);color:var(--c-text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;transition:background .15s;"
-    onmouseover="this.style.background='var(--c-hover)'" onmouseout="this.style.background='none'">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-</button>` : ''}
-        </div>
+            ${_canSeeSettings ? `
+            <button onclick="openGroupSettings('${conv.id}')" title="Group settings"
+                style="width:34px;height:34px;border-radius:50%;background:none;border:1px solid var(--c-border);color:var(--c-text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;transition:background .15s;"
+                onmouseover="this.style.background='var(--c-hover)'" onmouseout="this.style.background='none'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </button>` : ''}
         </div>
         <div class="messages-wrap" id="messages-wrap">
             <div style="text-align:center;padding:30px;color:var(--c-text-3);font-size:13px;">Loading messages…</div>
