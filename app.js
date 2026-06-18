@@ -349,22 +349,35 @@ async function updateProfile(id, updates) {
     if (error) throw error;
 }
 
-async function createPortalUser(email, password, fullName, role) {
-    // signUp with metadata so the trigger sets correct role
+async function createPortalUser(email, fullName, role) {
+    // Create account with a random password the user will never see —
+    // they'll set their own via the invite/reset link sent below.
+    const tempPass = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map(b => b.toString(36)).join('').slice(0, 18) + 'Aa1!';
+
     const { data, error } = await sb.auth.signUp({
-        email, password,
+        email,
+        password: tempPass,
         options: { data: { full_name: fullName, role } }
     });
     if (error) throw error;
 
-    // Ensure profile upsert (trigger may lag)
+    // Upsert profile immediately (DB trigger may lag)
     if (data.user) {
         await sb.from('profiles').upsert({
             id: data.user.id, email, full_name: fullName, role, is_active: true
         }, { onConflict: 'id' });
     }
+
+    // Send a password-setup link — user clicks to choose their password
+    const redirectTo = window.location.origin +
+        window.location.pathname.replace(/\/[^/]*$/, '/') + 'index.html';
+    const { error: inviteErr } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (inviteErr) throw inviteErr;
+
     return data;
 }
+
 // ─── THEME SYSTEM ────────────────────────────────────────────────────────────
 
 async function initTheme(userId) {
