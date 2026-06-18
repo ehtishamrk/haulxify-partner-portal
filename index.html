@@ -191,33 +191,39 @@ sb.auth.onAuthStateChange(async (event, session) => {
 
 // ── On load: exchange token from URL hash, then decide what to show ────────────
 (async () => {
-    const hash = window.location.hash || '';
-    const isAuthLink = hash.includes('type=recovery') || hash.includes('type=invite') || hash.includes('access_token');
+    const hash    = window.location.hash || '';
+    const search  = window.location.search || '';
 
-    if (isAuthLink) {
+    // Parse token type from hash or query string (Supabase puts it in hash for invites)
+    const isRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
+    const isInvite   = hash.includes('type=invite')   || search.includes('type=invite');
+    const hasToken   = hash.includes('access_token')  || search.includes('access_token');
+
+    if (isRecovery || isInvite || hasToken) {
         _inRecoveryFlow = true;
         showView('reset');
 
-        // Show a loading state while Supabase exchanges the token
-        const btn = document.getElementById('reset-submit-btn');
+        const btn      = document.getElementById('reset-submit-btn');
         const resultEl = document.getElementById('reset-result');
         if (btn) { btn.disabled = true; btn.innerHTML = '<span>Loading…</span>'; }
 
-        // Explicitly tell Supabase to exchange the hash token into a session
-        // This is what was missing — without this, updateUser() has no session
-        try {
-            const { data, error } = await sb.auth.exchangeCodeForSession
-                ? sb.auth.exchangeCodeForSession(hash.substring(1))  // Supabase v2 PKCE
-                : sb.auth.setSession({ access_token: null, refresh_token: null }); // fallback
-        } catch(e) { /* exchange happens automatically via onAuthStateChange */ }
+        // For invite links, extract the access_token from the hash and set session directly
+        if (isInvite || hasToken) {
+            try {
+                const params = new URLSearchParams(hash.replace('#', ''));
+                const accessToken  = params.get('access_token');
+                const refreshToken = params.get('refresh_token') || '';
+                if (accessToken) {
+                    await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+                }
+            } catch(e) { console.warn('setSession error:', e); }
+        }
 
-        // Wait for onAuthStateChange to fire PASSWORD_RECOVERY or SIGNED_IN
-        // which will confirm the session is ready — give it up to 8 seconds
+        // Wait up to 8 seconds for session to be ready
         let waited = 0;
         while (waited < 8000) {
             const { data: { session } } = await sb.auth.getSession();
             if (session) {
-                // Session is ready, enable the form
                 if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
                 return;
             }
@@ -225,11 +231,11 @@ sb.auth.onAuthStateChange(async (event, session) => {
             waited += 300;
         }
 
-        // If still no session after 8s, the link has expired
+        // Link expired
         if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
         if (resultEl) {
             resultEl.style.cssText = '';
-            resultEl.textContent = 'This link has expired or already been used. Please request a new one.';
+            resultEl.textContent = 'This link has expired or already been used. Please contact your admin.';
             resultEl.classList.remove('hidden');
         }
         return;
