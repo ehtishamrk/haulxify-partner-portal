@@ -26,105 +26,136 @@ function injectPopup() {
     style.textContent = `
     #chat-popup-btn {
         position: fixed; bottom: 24px; right: 24px; z-index: 8000;
-        width: 52px; height: 52px; border-radius: 50%;
+        width: 56px; height: 56px; border-radius: 50%;
         background: var(--c-accent); color: #fff;
         border: none; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 16px rgba(0,0,0,.25);
-        transition: transform .2s;
+        box-shadow: 0 2px 12px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.2);
+        transition: transform .15s, box-shadow .15s;
     }
-    #chat-popup-btn:hover { transform: scale(1.08); }
+    #chat-popup-btn:hover { transform: scale(1.06); box-shadow: 0 4px 20px rgba(0,0,0,.35); }
     #chat-popup-unread {
-        position: absolute; top: -2px; right: -2px;
-        background: var(--c-danger); color: #fff;
+        position: absolute; top: -3px; right: -3px;
+        background: #e3293e; color: #fff;
         font-size: 10px; font-weight: 700;
         border-radius: 10px; padding: 1px 5px;
         min-width: 16px; text-align: center;
-        border: 2px solid var(--c-page);
-        display: none;
+        border: 2px solid white; display: none;
     }
     #chat-popup-panel {
-        position: fixed; bottom: 86px; right: 24px; z-index: 8000;
-        width: 340px;
+        position: fixed; bottom: 90px; right: 24px; z-index: 8000;
+        width: 330px; height: 500px;
         background: var(--c-surface);
-        border: 1px solid var(--c-border);
-        border-radius: 16px;
-        box-shadow: 0 8px 32px rgba(0,0,0,.2);
-        display: flex; flex-direction: column;
-        overflow: hidden;
-        height: 480px;
-        transform: scale(.95) translateY(10px);
-        opacity: 0;
-        pointer-events: none;
-        transition: transform .2s, opacity .2s;
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,.15), 0 16px 48px rgba(0,0,0,.22);
+        display: flex; flex-direction: column; overflow: hidden;
+        transform: scale(.9) translateY(20px);
+        transform-origin: bottom right;
+        opacity: 0; pointer-events: none;
+        transition: transform .2s cubic-bezier(.34,1.56,.64,1), opacity .15s;
     }
-    #chat-popup-panel.open {
-        transform: scale(1) translateY(0);
-        opacity: 1;
-        pointer-events: all;
-    }
+    #chat-popup-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
     .popup-header {
-        background: var(--c-surface);
-        border-bottom: 1px solid var(--c-border);
-        padding: 12px 14px;
-        display: flex; align-items: center; gap: 8px;
-        flex-shrink: 0;
+        background: var(--c-accent); color: #fff;
+        padding: 12px 14px; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
     }
-    .popup-header-title { font-size: 14px; font-weight: 600; color: var(--c-text); flex: 1; }
+    .popup-header-title { font-size: 15px; font-weight: 700; color: #fff; flex: 1; }
     .popup-header-btn {
-        background: none; border: none; cursor: pointer;
-        color: var(--c-text-3); padding: 4px; border-radius: 6px;
-        display: flex; align-items: center;
-        transition: color .15s, background .15s;
+        background: rgba(255,255,255,.2); border: none; cursor: pointer;
+        color: #fff; border-radius: 50%; width: 28px; height: 28px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background .15s;
     }
-    .popup-header-btn:hover { color: var(--c-text); background: var(--c-hover); }
+    .popup-header-btn:hover { background: rgba(255,255,255,.35); }
+    .popup-search { padding: 8px 10px; border-bottom: 1px solid var(--c-border); }
+    .popup-search input {
+        width: 100%; padding: 7px 12px; border-radius: 20px;
+        border: 1px solid var(--c-border); background: var(--c-raised);
+        color: var(--c-text); font-size: 12px; outline: none; box-sizing: border-box;
+    }
+    .popup-search input:focus { border-color: var(--c-accent); }
     .popup-body { flex: 1; overflow-y: auto; }
     .popup-conv-item {
         display: flex; align-items: center; gap: 10px;
-        padding: 10px 14px; cursor: pointer;
-        border-bottom: 1px solid var(--c-border);
-        transition: background .15s;
+        padding: 10px 14px; cursor: pointer; transition: background .1s;
     }
     .popup-conv-item:hover { background: var(--c-hover); }
     .popup-conv-avatar {
-        width: 36px; height: 36px; border-radius: 50%;
+        width: 42px; height: 42px; border-radius: 50%;
         background: var(--c-raised); border: 1px solid var(--c-border);
         display: flex; align-items: center; justify-content: center;
-        font-size: 12px; font-weight: 600; color: var(--c-text-2);
+        font-size: 14px; font-weight: 700; color: var(--c-text-2);
         flex-shrink: 0; overflow: hidden;
     }
     .popup-conv-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
     .popup-conv-info { flex: 1; min-width: 0; }
-    .popup-conv-name { font-size: 13px; font-weight: 500; color: var(--c-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .popup-conv-preview { font-size: 11px; color: var(--c-text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
-    .popup-unread-dot { width:8px; height:8px; border-radius:50%; background:var(--c-accent); flex-shrink:0; }
-    .popup-messages { padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+    .popup-conv-name { font-size: 13px; font-weight: 600; color: var(--c-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .popup-conv-preview { font-size: 11px; color: var(--c-text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+    .popup-conv-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+    .popup-conv-time { font-size: 10px; color: var(--c-text-3); white-space:nowrap; }
+    .popup-unread-badge {
+        background: var(--c-accent); color: #fff;
+        font-size: 10px; font-weight: 700; border-radius: 10px;
+        padding: 1px 6px; min-width: 16px; text-align: center;
+    }
+    .popup-messages { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
     .popup-msg-row { display:flex; gap:6px; align-items:flex-end; }
     .popup-msg-row.mine { flex-direction:row-reverse; }
-    .popup-msg-avatar { width:24px; height:24px; border-radius:50%; background:var(--c-raised); border:1px solid var(--c-border); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:var(--c-text-2); flex-shrink:0; overflow:hidden; }
+    .popup-msg-avatar {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: var(--c-raised); border: 1px solid var(--c-border);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 700; color: var(--c-text-2);
+        flex-shrink: 0; overflow: hidden;
+    }
     .popup-msg-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
-    .popup-bubble { padding:7px 10px; border-radius:14px; font-size:12px; line-height:1.5; color:var(--c-text); background:var(--c-raised); border:1px solid var(--c-border); max-width:200px; word-break:break-word; }
-    .popup-msg-row.mine .popup-bubble { background:var(--c-accent); color:#fff; border-color:var(--c-accent); }
-    .popup-bubble img { max-width:160px; border-radius:8px; display:block; cursor:pointer; }
-    .popup-input-area { border-top:1px solid var(--c-border); padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+    .popup-bubble {
+        padding: 8px 12px; border-radius: 18px; border-bottom-left-radius: 4px;
+        font-size: 13px; line-height: 1.45; color: var(--c-text);
+        background: var(--c-raised); border: 1px solid var(--c-border);
+        max-width: 210px; word-break: break-word;
+    }
+    .popup-msg-row.mine .popup-bubble {
+        background: var(--c-accent); color: #fff; border-color: var(--c-accent);
+        border-bottom-right-radius: 4px; border-bottom-left-radius: 18px;
+    }
+    .popup-bubble img { max-width:160px; border-radius:10px; display:block; cursor:pointer; }
+    .popup-input-area {
+        border-top: 1px solid var(--c-border); padding: 8px 10px;
+        flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;
+    }
     .popup-file-strip { display:flex; flex-wrap:wrap; gap:4px; }
-    .popup-file-chip { background:var(--c-raised); border:1px solid var(--c-border); border-radius:6px; padding:3px 8px; font-size:11px; color:var(--c-text-2); display:flex; align-items:center; gap:4px; }
-    .popup-file-chip button { background:none; border:none; color:var(--c-text-3); cursor:pointer; font-size:11px; padding:0; }
+    .popup-file-chip {
+        background: var(--c-raised); border: 1px solid var(--c-border);
+        border-radius: 12px; padding: 3px 10px; font-size: 11px;
+        color: var(--c-text-2); display: flex; align-items: center; gap: 4px;
+    }
+    .popup-file-chip button { background:none; border:none; color:var(--c-text-3); cursor:pointer; font-size:12px; padding:0; }
     .popup-row { display:flex; align-items:flex-end; gap:6px; }
-    .popup-textarea { flex:1; background:var(--c-raised); border:1px solid var(--c-border); border-radius:10px; padding:8px 10px; font-size:12px; color:var(--c-text); font-family:var(--font); resize:none; outline:none; line-height:1.4; max-height:80px; overflow-y:auto; }
-    .popup-textarea:focus { border-color:var(--c-accent); }
-    .popup-textarea::placeholder { color:var(--c-text-3); }
-    .popup-attach-btn { background:none; border:1px solid var(--c-border); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--c-text-3); transition:background .15s; flex-shrink:0; }
-    .popup-attach-btn:hover { background:var(--c-hover); color:var(--c-text); }
-    .popup-send-btn { background:var(--c-accent); border:none; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; flex-shrink:0; transition:background .15s; }
-    .popup-send-btn:hover { background:var(--c-accent-d); }
-    .popup-send-btn:disabled { opacity:.4; }
+    .popup-textarea {
+        flex: 1; background: var(--c-raised); border: 1px solid var(--c-border);
+        border-radius: 20px; padding: 8px 14px; font-size: 13px; color: var(--c-text);
+        font-family: var(--font); resize: none; outline: none;
+        line-height: 1.4; max-height: 80px; overflow-y: auto;
+    }
+    .popup-textarea:focus { border-color: var(--c-accent); }
+    .popup-textarea::placeholder { color: var(--c-text-3); }
+    .popup-attach-btn {
+        background: none; border: none; border-radius: 50%; width: 34px; height: 34px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: var(--c-accent); transition: background .15s; flex-shrink: 0;
+    }
+    .popup-attach-btn:hover { background: var(--c-hover); }
+    .popup-send-btn {
+        background: var(--c-accent); border: none; border-radius: 50%;
+        width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: #fff; flex-shrink: 0; transition: filter .15s;
+    }
+    .popup-send-btn:hover { filter: brightness(1.12); }
+    .popup-send-btn:disabled { opacity: .4; }
     .popup-new-dm {
-        padding: 10px 14px;
-        border-bottom: 1px solid var(--c-border);
-        font-size: 12px; color: var(--c-accent);
-        cursor: pointer; display: flex; align-items: center; gap: 6px;
-        transition: background .15s;
+        padding: 10px 14px; font-size: 12px; color: var(--c-accent); font-weight: 500;
+        cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background .15s;
     }
     .popup-new-dm:hover { background: var(--c-hover); }
     `;
@@ -226,14 +257,21 @@ window.popupShowList = function() {
     const existingDMIds = new Set(_popupConvs.filter(c => !c.isGroup).map(c => c.otherUser?.id));
     const noConvUsers   = allOtherUsers.filter(p => !existingDMIds.has(p.id));
 
-    let html = _popupConvs.map(c => {
+let html = `<div class="popup-search"><input placeholder="Search…" oninput="popupFilterList(this.value)"></div>`;
+    html += _popupConvs.map(c => {
         const preview = c.lastMessage
             ? (c.lastMessage.file_name ? `📎 ${c.lastMessage.file_name}` : c.lastMessage.content || '')
             : 'No messages yet';
+        const timeStr = c.lastMessage
+            ? (() => { const d = new Date(c.lastMessage.created_at); const now = new Date();
+                return (now - d < 86400000)
+                    ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+                    : d.toLocaleDateString([], {month:'short', day:'numeric'}); })()
+            : '';
         return `<div class="popup-conv-item" onclick="popupOpenConv('${c.id}')">
             <div class="popup-conv-avatar" style="${c.isGroup ? 'background:var(--c-accent-g);color:var(--c-accent);' : ''}">
                 ${c.isGroup
-                    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
+                    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`
                     : (c.otherUser?.avatar_url ? `<img src="${c.otherUser.avatar_url}">` : popupInitials(c.displayName))
                 }
             </div>
@@ -241,7 +279,10 @@ window.popupShowList = function() {
                 <div class="popup-conv-name">${escHtml(c.displayName)}</div>
                 <div class="popup-conv-preview">${escHtml((preview || '').slice(0, 40))}</div>
             </div>
-            ${c.unread > 0 ? `<div class="popup-unread-dot"></div>` : ''}
+            <div class="popup-conv-meta">
+                <span class="popup-conv-time">${timeStr}</span>
+                ${c.unread > 0 ? `<span class="popup-unread-badge">${c.unread}</span>` : ''}
+            </div>
         </div>`;
     }).join('');
 
@@ -517,6 +558,14 @@ window.popupInitiateCall = function() {
     document.body.appendChild(overlay);
 };
 
+window.popupFilterList = function(query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll('.popup-conv-item').forEach(el => {
+        const name = el.querySelector('.popup-conv-name')?.textContent?.toLowerCase() || '';
+        el.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+};
+    
 // ── Boot after auth is ready ──────────────────────────────────────────────────
 function waitForAuth() {
     if (currentUser && sb) {
