@@ -376,21 +376,38 @@ async function confirmDeleteUser(userId, name) {
 
 async function deleteUser(userId, name) {
     try {
-        // Delete from auth.users via Edge Function (also cascades to profiles)
         const { data: { session } } = await sb.auth.getSession();
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({ userId })
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'Delete failed');
+        if (!session) throw new Error('No active session. Please refresh and try again.');
+
+        let result;
+        try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ userId })
+            });
+            // Safely parse response — edge function might return non-JSON on error
+            const text = await res.text();
+            try { result = JSON.parse(text); } catch { result = { error: text }; }
+            if (!res.ok) throw new Error(result.error || `Server error (${res.status})`);
+        } catch (fetchErr) {
+            throw fetchErr;
+        }
+
+        // Manually remove from profiles as fallback in case cascade didn't fire
+        await sb.from('profiles').delete().eq('id', userId);
+
         showToast(`"${name}" has been permanently deleted.`, 'success');
+        // Force refresh the user list
+        await loadUsers();
+        await loadStats();
+
     } catch (err) {
         showToast('Delete failed: ' + err.message, 'error');
+        console.error('deleteUser error:', err);
     }
 }
 
