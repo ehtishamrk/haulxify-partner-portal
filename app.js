@@ -43,7 +43,8 @@ async function checkAuth(allowedRoles = null) {
 
 currentUser    = session.user;
         currentProfile = profile;
-
+updateNotifBadge();
+        subscribeNotifications();
 // Single-session watcher
         const storedToken = sessionStorage.getItem('ss_token');
         const expectedToken = storedToken || profile.session_token;
@@ -306,6 +307,23 @@ async function createLead(payload) {
         lead_id: data.id, user_id: currentProfile.id,
         action_type: 'created', new_status: 'New'
     });
+    // Notify all admins and super_admins
+    try {
+        const { data: admins } = await sb.from('profiles')
+            .select('id').in('role', ['super_admin', 'sales_agent'])
+            .eq('is_active', true).neq('id', currentProfile.id);
+        if (admins && admins.length) {
+            await sb.from('notifications').insert(
+                admins.map(a => ({
+                    user_id: a.id,
+                    type: 'new_lead',
+                    title: '🆕 New Lead',
+                    body: `${currentProfile.full_name} added "${payload.company_name || payload.owner_name}"`,
+                    lead_id: data.id
+                }))
+            );
+        }
+    } catch(e) { console.warn('Notification error:', e.message); }
     return data;
 }
 
@@ -466,3 +484,93 @@ function _stopHeartbeat() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── NOTIFICATION SYSTEM ──────────────────────────────────────────────────────
+let _notifOpen = false;
+
+window.toggleNotifPanel = function() {
+    _notifOpen = !_notifOpen;
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    panel.style.display = _notifOpen ? 'flex' : 'none';
+    if (_notifOpen) loadNotifs();
+};
+
+document.addEventListener('click', function(e) {
+    const panel = document.getElementById('notif-panel');
+    const btn   = document.getElementById('notif-bell-btn');
+    if (_notifOpen && panel && !panel.contains(e.target) && !btn?.contains(e.target)) {
+        _notifOpen = false;
+        panel.style.display = 'none';
+    }
+});
+
+async function loadNotifs() {
+    const list = document.getElementById('notif-list');
+    if (!list || !currentUser) return;
+    const { data } = await sb.from('notifications')
+        .select('*').eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false }).limit(30);
+    if (!data || !data.length) {
+        list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--c-text-3);font-size:13px;">No notifications yet</div>';
+        return;
+    }
+    list.innerHTML = data.map(n => `
+        <div onclick="notifClick('${n.id}','${n.lead_id || ''}')"
+            style="padding:10px 14px;border-bottom:1px solid var(--c-border);cursor:pointer;display:flex;gap:10px;align-items:flex-start;background:${n.is_read ? '' : 'var(--c-accent-g,rgba(99,102,241,.06))'};"
+            onmouseover="this.style.background='var(--c-hover)'"
+            onmouseout="this.style.background='${n.is_read ? 'transparent' : 'var(--c-accent-g,rgba(99,102,241,.06))'}'">
+            <div style="font-size:18px;line-height:1.4;">${n.type === 'new_lead' ? '🆕' : '🔔'}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:${n.is_read ? '400' : '600'};color:var(--c-text);">${n.title}</div>
+                <div style="font-size:11px;color:var(--c-text-3);margin-top:2px;">${n.body || ''}</div>
+                <div style="font-size:10px;color:var(--c-text-3);margin-top:3px;">${new Date(n.created_at).toLocaleString()}</div>
+            </div>
+            ${n.is_read ? '' : '<div style="width:7px;height:7px;border-radius:50%;background:var(--c-accent);flex-shrink:0;margin-top:5px;"></div>'}
+        </div>`).join('');
+}
+
+window.notifClick = async function(notifId, leadId) {
+    await sb.from('notifications').update({ is_read: true }).eq('id', notifId);
+    _notifOpen = false;
+    const panel = document.getElementById('notif-panel');
+    if (panel) panel.style.display = 'none';
+    if (leadId && window.location.pathname.includes('leads')) {
+        if (typeof openDrawer === 'function') openDrawer(leadId);
+    } else if (leadId) {
+        window.location.href = 'leads.html';
+    }
+    updateNotifBadge();
+};
+
+window.markAllNotifsRead = async function() {
+    if (!currentUser) return;
+    await sb.from('notifications').update({ is_read: true })
+        .eq('user_id', currentUser.id).eq('is_read', false);
+    loadNotifs();
+    updateNotifBadge();
+};
+
+window.updateNotifBadge = async function() {
+    if (!currentUser) return;
+    const { count } = await sb.from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id).eq('is_read', false);
+    const badge = document.getElementById('notif-nav-badge');
+    if (badge) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = count > 0 ? '' : 'none';
+    }
+};
+
+window.subscribeNotifications = function() {
+    if (!currentUser) return;
+    sb.channel('user-notifs:' + currentUser.id)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'notifications',
+            filter: `user_id=eq.${currentUser.id}`
+        }, (payload) => {
+            updateNotifBadge();
+            showToast(payload.new.title + (payload.new.body ? ': ' + payload.new.body : ''), 'success');
+        })
+        .subscribe();
+};
