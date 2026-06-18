@@ -235,13 +235,21 @@ async function initPopupData() {
 
 async function loadPopupUnread(conv) {
     const myPart = conv.conversation_participants?.find(p => p.user_id === currentUser.id);
-    const { count } = await sb.from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('conversation_id', conv.id)
-        .gt('created_at', myPart?.last_read_at || '1970-01-01')
-        .neq('sender_id', currentUser.id);
+    const [{ count }, { data: lastMsgs }] = await Promise.all([
+        sb.from('messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', conv.id)
+            .gt('created_at', myPart?.last_read_at || '1970-01-01')
+            .neq('sender_id', currentUser.id),
+        sb.from('messages')
+            .select('content, file_name, created_at, sender_id')
+            .eq('conversation_id', conv.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+    ]);
     conv.unread = count || 0;
     _popupUnread[conv.id] = conv.unread;
+    conv.lastMessage = lastMsgs?.[0] || null;
 }
 
 // ── List view ─────────────────────────────────────────────────────────────────
