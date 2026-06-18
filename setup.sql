@@ -8,8 +8,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id          UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     email       TEXT NOT NULL,
     full_name   TEXT NOT NULL DEFAULT 'New User',
-    role        TEXT NOT NULL DEFAULT 'sales_agent'
-                    CHECK (role IN ('super_admin', 'sales_agent', 'status_updater')),
+role        TEXT NOT NULL DEFAULT 'sales_agent'
+                CHECK (role IN ('super_admin', 'admin', 'sales_agent', 'status_updater')),
+approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+is_approved BOOLEAN NOT NULL DEFAULT true,
     is_active   BOOLEAN NOT NULL DEFAULT true,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
