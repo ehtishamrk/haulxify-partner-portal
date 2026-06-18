@@ -85,9 +85,13 @@
                     <label>Email Address</label>
                     <input id="f-email" class="form-control" placeholder="owner@company.com" type="email">
                 </div>
-                <div class="form-group full">
+<div class="form-group full">
                     <label>Company Address</label>
                     <input id="f-company_address" class="form-control" placeholder="123 Freight Ave, Dallas, TX 75201">
+                </div>
+                <div class="form-group">
+                    <label>Lead Date</label>
+                    <input id="f-lead_date" class="form-control" type="date">
                 </div>
             </div>
         </div>
@@ -321,7 +325,8 @@ function renderLeads() {
             <th>Drivers</th>
             <th>Route</th>
             <th>Status</th>
-            <th>Agent</th>
+<th>Agent</th>
+            <th>Lead Date</th>
             <th>Added</th>
             <th></th>
         </tr></thead>
@@ -340,7 +345,8 @@ function renderLeads() {
             <td class="text-muted">${l.drivers_required || '—'}</td>
             <td class="text-muted">${escHtml(l.route_type || '—')}</td>
             <td>${statusBadge(l.status)}</td>
-            <td class="text-muted">${escHtml(l.agent?.full_name || '—')}</td>
+<td class="text-muted">${escHtml(l.agent?.full_name || '—')}</td>
+            <td class="text-muted">${l.lead_date ? formatDate(l.lead_date) : '—'}</td>
             <td class="text-muted">${formatDate(l.created_at)}</td>
             <td onclick="event.stopPropagation()">
                 <div class="actions-cell">
@@ -392,8 +398,8 @@ function onModalOverlayClick(e) {
 }
 
 function clearForm() {
-    ['owner_name','company_name','phone','email','company_address',
-     'drivers_required','experience_years','specific_requirements',
+['owner_name','company_name','phone','email','company_address',
+     'lead_date','drivers_required','experience_years','specific_requirements',
      'compensation_type','compensation_value','commission_per_hire'].forEach(id => {
         const el = document.getElementById('f-' + id);
         if (el) el.value = '';
@@ -419,6 +425,7 @@ function populateForm(l) {
     set('experience_years', l.experience_years);
     set('specific_requirements', l.specific_requirements);
     set('commission_per_hire', l.commission_per_hire);
+    if (l.lead_date) set('lead_date', l.lead_date.substring(0, 10));
 
     const radio = (name, val) => {
         if (val === null || val === undefined) return;
@@ -476,7 +483,8 @@ drivers_required:        g('drivers_required') ? parseInt(g('drivers_required'))
         compensation_type:       g('compensation_type') || null,
         compensation_value:      g('compensation_value'),
         employment_classification: getRadio('employment_classification'),
-        commission_per_hire:     g('commission_per_hire'),
+commission_per_hire:     g('commission_per_hire'),
+        lead_date:               g('lead_date') || null,
     };
 }
 
