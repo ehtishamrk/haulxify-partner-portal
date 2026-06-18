@@ -110,9 +110,12 @@ function redirectToLogin() {
 }
 
 function redirectByRole(role) {
-    window.location.href = role === 'super_admin' ? 'admin.html' : 'leads.html';
+    if (role === 'super_admin' || role === 'admin') {
+        window.location.href = 'admin.html';
+    } else {
+        window.location.href = 'leads.html';
+    }
 }
-
 // ─── SINGLE SESSION ENFORCEMENT ──────────────────────────────────────────────
 
 let _activeSessionToken = null;
@@ -248,6 +251,7 @@ function statusBadge(status) {
 
 const ROLE_META = {
     super_admin:    { label:'Super Admin',    color:'#f59e0b' },
+    admin:          { label:'Admin',          color:'#a855f7' },
     sales_agent:    { label:'Sales Agent',    color:'#6366f1' },
     status_updater: { label:'Status Updater', color:'#06b6d4' },
 };
@@ -347,6 +351,16 @@ async function statusUpdateRpc(leadId, status, comment) {
     return data;
 }
 
+async function assignLead(leadId, assigneeId) {
+    const { data, error } = await sb.rpc('assign_lead_to_employee', {
+        p_lead_id: leadId,
+        p_assignee: assigneeId
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data;
+}
+
 async function deleteLead(id) {
     if (!currentProfile || currentProfile.role !== 'super_admin') {
         throw new Error('Only a Super Admin can delete leads.');
@@ -361,6 +375,51 @@ async function fetchProfiles() {
     const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
+}
+
+// Fetch employees added by a specific admin (approved ones only)
+async function fetchMyEmployees(adminId) {
+    const { data, error } = await sb.from('profiles')
+        .select('*')
+        .eq('approved_by', adminId)
+        .eq('is_approved', true)
+        .eq('is_active', true)
+        .order('full_name');
+    if (error) throw error;
+    return data || [];
+}
+
+// Fetch employees pending approval (for super_admin)
+async function fetchPendingEmployees() {
+    const { data, error } = await sb.from('profiles')
+        .select('*, approver:profiles!profiles_approved_by_fkey(full_name)')
+        .eq('is_approved', false)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+async function approveEmployee(userId) {
+    const { error } = await sb.from('profiles')
+        .update({ is_approved: true, is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+    if (error) throw error;
+    // Send setup email via Supabase invite
+    const { data: { session } } = await sb.auth.getSession();
+    const redirectTo = window.location.origin +
+        window.location.pathname.replace(/\/[^/]*$/, '/') + 'index.html';
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-user`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ userId, sendSetupEmail: true, redirectTo })
+    });
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); } catch { throw new Error(text); }
+    if (!res.ok) throw new Error(result.error || `Invite failed (${res.status})`);
 }
 
 async function updateProfile(id, updates) {
