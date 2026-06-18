@@ -143,7 +143,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         weekday:'long', year:'numeric', month:'long', day:'numeric'
     });
 
-    await Promise.all([loadStats(), loadUsers()]);
+await Promise.all([loadStats(), loadUsers()]);
+
+    // ── Real-time: table auto-refreshes when any profile row changes ──────────
+    sb.channel('admin-users-realtime')
+        .on('postgres_changes', {
+            event: '*', schema: 'public', table: 'profiles'
+        }, () => {
+            loadUsers();
+            loadStats();
+        })
+        .subscribe();
 });
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -216,17 +226,27 @@ function renderUsers() {
                     </div>
                 </td>
                 <td><span class="role-pill" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span></td>
-                <td>
-                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${u.is_active ? 'var(--c-success)' : 'var(--c-text-3)'};">
-                        <span style="width:7px;height:7px;border-radius:50%;background:${u.is_active ? 'var(--c-success)' : 'var(--c-text-3)'}"></span>
-                        ${u.is_active ? 'Active' : 'Deactivated'}
+<td>
+                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${u.is_active ? 'var(--c-success)' : '#f59e0b'};">
+                        <span style="width:7px;height:7px;border-radius:50%;background:${u.is_active ? 'var(--c-success)' : '#f59e0b'};flex-shrink:0;"></span>
+                        ${u.is_active ? 'Active' : '❄ Frozen'}
                     </span>
                 </td>
                 <td style="color:var(--c-text-2);">${formatDate(u.created_at)}</td>
                 <td>
-                    <div style="display:flex;gap:6px;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <button class="btn btn-ghost btn-sm" onclick="openEditUserModal('${u.id}')">Edit</button>
-                        ${u.id !== currentProfile.id ? `<button class="btn btn-${u.is_active?'danger':'secondary'} btn-sm" onclick="toggleUserActive('${u.id}', ${!u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>` : ''}
+                        ${u.id !== currentProfile.id ? `
+                            <button class="btn btn-sm" style="background:${u.is_active ? '#f59e0b18' : '#10b98118'};color:${u.is_active ? '#f59e0b' : '#10b981'};border:1px solid ${u.is_active ? '#f59e0b44' : '#10b98144'};"
+                                onclick="toggleUserActive('${u.id}', ${!u.is_active})">
+                                ${u.is_active ? '❄ Freeze' : '✓ Unfreeze'}
+                            </button>
+                            <button class="btn btn-sm" id="del-btn-${u.id}"
+                                style="background:#ef444418;color:#ef4444;border:1px solid #ef444444;"
+                                onclick="confirmDeleteUser('${u.id}', '${escHtml(u.full_name).replace(/'/g,"\\'")}')">
+                                🗑 Delete
+                            </button>
+                        ` : `<span style="font-size:11px;color:var(--c-text-3);padding:4px 6px;">(you)</span>`}
                     </div>
                 </td>
             </tr>`;
@@ -328,6 +348,49 @@ async function toggleUserActive(userId, newState) {
     } catch (err) {
         showToast('Error: ' + err.message, 'error');
     }
+}
+
+async function confirmDeleteUser(userId, name) {
+    const btn = document.getElementById('del-btn-' + userId);
+    if (!btn) return;
+
+    if (!btn.dataset.confirming) {
+        // First click — ask for confirmation
+        btn.dataset.confirming = '1';
+        btn.textContent = '⚠ Confirm?';
+        btn.style.background   = '#ef444433';
+        btn.style.borderColor  = '#ef444488';
+        btn.style.fontWeight   = '700';
+
+        // Auto-cancel after 3s if no second click
+        setTimeout(() => {
+            if (btn.dataset.confirming) {
+                delete btn.dataset.confirming;
+                btn.textContent   = '🗑 Delete';
+                btn.style.background   = '#ef444418';
+                btn.style.borderColor  = '#ef444444';
+                btn.style.fontWeight   = '';
+            }
+        }, 3000);
+        return;
+    }
+
+    // Second click — execute delete
+    delete btn.dataset.confirming;
+    await deleteUser(userId, name);
+}
+
+async function deleteUser(userId, name) {
+    try {
+        const { error } = await sb.from('profiles').delete().eq('id', userId);
+        if (error) throw error;
+        showToast(`"${name}" removed from the portal.`, 'success');
+        // Note: their Supabase Auth account still exists.
+        // Remove it manually from Supabase Dashboard > Auth > Users if needed.
+    } catch (err) {
+        showToast('Delete failed: ' + err.message, 'error');
+    }
+    // No need to call loadUsers() — realtime subscription handles it automatically
 }
 
 // ─── ADMIN LEADS VIEW ─────────────────────────────────────────────────────────
