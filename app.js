@@ -371,32 +371,26 @@ async function updateProfile(id, updates) {
 }
 
 async function createPortalUser(email, fullName, role) {
-    // Create account with a random password the user will never see —
-    // they'll set their own via the invite/reset link sent below.
-    const tempPass = Array.from(crypto.getRandomValues(new Uint8Array(24)))
-        .map(b => b.toString(36)).join('').slice(0, 18) + 'Aa1!';
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) throw new Error('No active session.');
 
-    const { data, error } = await sb.auth.signUp({
-        email,
-        password: tempPass,
-        options: { data: { full_name: fullName, role } }
-    });
-    if (error) throw error;
-
-    // Upsert profile immediately (DB trigger may lag)
-    if (data.user) {
-        await sb.from('profiles').upsert({
-            id: data.user.id, email, full_name: fullName, role, is_active: true
-        }, { onConflict: 'id' });
-    }
-
-    // Send a password-setup link — user clicks to choose their password
     const redirectTo = window.location.origin +
         window.location.pathname.replace(/\/[^/]*$/, '/') + 'index.html';
-    const { error: inviteErr } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-    if (inviteErr) throw inviteErr;
 
-    return data;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-user`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ email, fullName, role, redirectTo })
+    });
+
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); } catch { throw new Error(text); }
+    if (!res.ok) throw new Error(result.error || `Invite failed (${res.status})`);
+    return result;
 }
 
 // ─── THEME SYSTEM ────────────────────────────────────────────────────────────
