@@ -105,13 +105,6 @@
                         <option value="super_admin">Super Admin — full access</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Account Status</label>
-                    <select id="u-active" class="form-control">
-                        <option value="true">Active</option>
-                        <option value="false">Deactivated</option>
-                    </select>
-                </div>
             </div>
         </div>
     </div>
@@ -263,7 +256,6 @@ function openUserModal() {
 document.getElementById('u-name').value     = '';
     document.getElementById('u-email').value    = '';
     document.getElementById('u-role').value     = '';
-    document.getElementById('u-active').value   = 'true';
     document.getElementById('u-email').disabled = false;
     document.getElementById('u-invite-notice').style.display = '';
     document.getElementById('save-user-btn').textContent = 'Send Invite';
@@ -280,7 +272,6 @@ function openEditUserModal(userId) {
     document.getElementById('u-email').value  = user.email;
     document.getElementById('u-email').disabled = true;
     document.getElementById('u-role').value   = user.role;
-    document.getElementById('u-active').value = String(user.is_active);
 document.getElementById('u-invite-notice').style.display = 'none';
     document.getElementById('save-user-btn').textContent = 'Save Changes';
     document.getElementById('user-modal').classList.remove('hidden');
@@ -301,7 +292,10 @@ async function saveUser() {
 const name   = document.getElementById('u-name').value.trim();
     const email  = document.getElementById('u-email').value.trim();
     const role   = document.getElementById('u-role').value;
-    const active = document.getElementById('u-active').value === 'true';
+    // New users are always active. Existing users keep their current status.
+    const active = editingUserId
+        ? (allUsers.find(u => u.id === editingUserId)?.is_active ?? true)
+        : true;
     const btn    = document.getElementById('save-user-btn');
 
     if (!name)  { showToast('Full name is required.', 'error'); return; }
