@@ -376,15 +376,22 @@ async function confirmDeleteUser(userId, name) {
 
 async function deleteUser(userId, name) {
     try {
-        const { error } = await sb.from('profiles').delete().eq('id', userId);
-        if (error) throw error;
-        showToast(`"${name}" removed from the portal.`, 'success');
-        // Note: their Supabase Auth account still exists.
-        // Remove it manually from Supabase Dashboard > Auth > Users if needed.
+        // Delete from auth.users via Edge Function (also cascades to profiles)
+        const { data: { session } } = await sb.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-auth-user`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ userId })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Delete failed');
+        showToast(`"${name}" has been permanently deleted.`, 'success');
     } catch (err) {
         showToast('Delete failed: ' + err.message, 'error');
     }
-    // No need to call loadUsers() — realtime subscription handles it automatically
 }
 
 // ─── ADMIN LEADS VIEW ─────────────────────────────────────────────────────────
