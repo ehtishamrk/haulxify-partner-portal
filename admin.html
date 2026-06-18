@@ -90,13 +90,11 @@
                     <label>Email Address <span class="req">*</span></label>
                     <input id="u-email" class="form-control" type="email" placeholder="jane@haulxify.com">
                 </div>
-                <div class="form-group" id="u-password-group">
-                    <label>Temporary Password <span class="req">*</span></label>
-                    <input id="u-password" class="form-control" type="password"
-                        placeholder="Min. 8 characters" autocomplete="new-password">
-                    <p style="font-size:11px;color:var(--c-text-3);margin-top:4px;">
-                        User should change this on first login.
-                    </p>
+<div class="form-group" id="u-invite-notice" style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:8px;padding:12px 14px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--c-text-2);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-accent)" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span>A <strong style="color:var(--c-text);">password setup link</strong> will be emailed to the user. They choose their own password when they click it.</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Role <span class="req">*</span></label>
@@ -242,14 +240,13 @@ function renderUsers() {
 function openUserModal() {
     editingUserId = null;
     document.getElementById('user-modal-title').textContent = 'Add Portal User';
-    document.getElementById('u-name').value     = '';
+document.getElementById('u-name').value     = '';
     document.getElementById('u-email').value    = '';
-    document.getElementById('u-password').value = '';
     document.getElementById('u-role').value     = '';
     document.getElementById('u-active').value   = 'true';
     document.getElementById('u-email').disabled = false;
-    document.getElementById('u-password-group').style.display = '';
-    document.getElementById('save-user-btn').textContent = 'Create User';
+    document.getElementById('u-invite-notice').style.display = '';
+    document.getElementById('save-user-btn').textContent = 'Send Invite';
     document.getElementById('user-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 }
@@ -264,7 +261,7 @@ function openEditUserModal(userId) {
     document.getElementById('u-email').disabled = true;
     document.getElementById('u-role').value   = user.role;
     document.getElementById('u-active').value = String(user.is_active);
-    document.getElementById('u-password-group').style.display = 'none';
+document.getElementById('u-invite-notice').style.display = 'none';
     document.getElementById('save-user-btn').textContent = 'Save Changes';
     document.getElementById('user-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -281,20 +278,16 @@ function onUserModalOverlay(e) {
 }
 
 async function saveUser() {
-    const name   = document.getElementById('u-name').value.trim();
+const name   = document.getElementById('u-name').value.trim();
     const email  = document.getElementById('u-email').value.trim();
-    const pass   = document.getElementById('u-password').value;
     const role   = document.getElementById('u-role').value;
     const active = document.getElementById('u-active').value === 'true';
     const btn    = document.getElementById('save-user-btn');
 
     if (!name)  { showToast('Full name is required.', 'error'); return; }
     if (!role)  { showToast('Please select a role.', 'error'); return; }
-    if (!editingUserId && (!email || !pass)) {
-        showToast('Email and password are required for new users.', 'error'); return;
-    }
-    if (!editingUserId && pass.length < 8) {
-        showToast('Password must be at least 8 characters.', 'error'); return;
+    if (!editingUserId && !email) {
+        showToast('Email is required.', 'error'); return;
     }
 
     btn.disabled = true; btn.textContent = 'Saving…';
@@ -304,14 +297,13 @@ async function saveUser() {
             await updateProfile(editingUserId, { full_name: name, role, is_active: active });
             showToast('User updated.', 'success');
         } else {
-            await createPortalUser(email, pass, name, role);
+await createPortalUser(email, name, role);
             if (!active) {
-                // Find created user and deactivate
                 const fresh = await fetchProfiles();
                 const created = fresh.find(u => u.email === email);
                 if (created) await updateProfile(created.id, { is_active: false });
             }
-            showToast(`User "${name}" created. They can now log in.`, 'success');
+            showToast(`Invite sent to ${email} — they'll receive a link to set their password.`, 'success');
         }
         closeUserModal();
         await loadUsers();
@@ -362,8 +354,9 @@ function renderAdminLeads() {
             <th>Phone</th>
             <th>Route</th>
             <th>Comp. Type</th>
-            <th>Status</th>
+<th>Status</th>
             <th>Agent</th>
+            <th>Lead Date</th>
             <th>Added</th>
         </tr></thead>
         <tbody>
@@ -376,7 +369,8 @@ function renderAdminLeads() {
             <td style="color:var(--c-text-2);">${escHtml(l.route_type||'—')}</td>
             <td style="color:var(--c-text-2);font-size:12px;">${escHtml(l.compensation_type||'—')}</td>
             <td>${statusBadge(l.status)}</td>
-            <td style="color:var(--c-text-2);">${escHtml(l.agent?.full_name||'—')}</td>
+<td style="color:var(--c-text-2);">${escHtml(l.agent?.full_name||'—')}</td>
+            <td style="color:var(--c-text-2);">${l.lead_date ? formatDate(l.lead_date) : '—'}</td>
             <td style="color:var(--c-text-2);">${formatDate(l.created_at)}</td>
         </tr>`).join('')}
         </tbody>
