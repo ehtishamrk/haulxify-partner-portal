@@ -189,14 +189,52 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }
 });
 
-// ── On load: check hash FIRST before getSession to avoid race condition ────────
+// ── On load: exchange token from URL hash, then decide what to show ────────────
 (async () => {
     const hash = window.location.hash || '';
-    if (hash.includes('type=recovery') || hash.includes('type=invite') || hash.includes('access_token')) {
+    const isAuthLink = hash.includes('type=recovery') || hash.includes('type=invite') || hash.includes('access_token');
+
+    if (isAuthLink) {
         _inRecoveryFlow = true;
         showView('reset');
+
+        // Show a loading state while Supabase exchanges the token
+        const btn = document.getElementById('reset-submit-btn');
+        const resultEl = document.getElementById('reset-result');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span>Loading…</span>'; }
+
+        // Explicitly tell Supabase to exchange the hash token into a session
+        // This is what was missing — without this, updateUser() has no session
+        try {
+            const { data, error } = await sb.auth.exchangeCodeForSession
+                ? sb.auth.exchangeCodeForSession(hash.substring(1))  // Supabase v2 PKCE
+                : sb.auth.setSession({ access_token: null, refresh_token: null }); // fallback
+        } catch(e) { /* exchange happens automatically via onAuthStateChange */ }
+
+        // Wait for onAuthStateChange to fire PASSWORD_RECOVERY or SIGNED_IN
+        // which will confirm the session is ready — give it up to 8 seconds
+        let waited = 0;
+        while (waited < 8000) {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                // Session is ready, enable the form
+                if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
+                return;
+            }
+            await new Promise(r => setTimeout(r, 300));
+            waited += 300;
+        }
+
+        // If still no session after 8s, the link has expired
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
+        if (resultEl) {
+            resultEl.style.cssText = '';
+            resultEl.textContent = 'This link has expired or already been used. Please request a new one.';
+            resultEl.classList.remove('hidden');
+        }
         return;
     }
+
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
     const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
