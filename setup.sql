@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
     status      TEXT NOT NULL DEFAULT 'New'
                     CHECK (status IN ('New','Contacted','Qualified','In Progress','Hired','Closed','Lost')),
     created_by  UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -93,7 +94,7 @@ CREATE POLICY "profiles_select" ON public.profiles
 CREATE POLICY "profiles_insert_admin" ON public.profiles
     FOR INSERT TO authenticated
     WITH CHECK (
-        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'super_admin')
+        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('super_admin', 'admin'))
     );
 
 CREATE POLICY "profiles_update" ON public.profiles
@@ -125,6 +126,7 @@ CREATE POLICY "leads_update" ON public.leads
             EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'sales_agent')
             AND created_by = auth.uid()
         )
+        OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
     );
 
 CREATE POLICY "leads_delete_admin" ON public.leads
@@ -236,3 +238,46 @@ GRANT EXECUTE ON FUNCTION public.update_lead_status_only TO authenticated;
 --    WHERE email = 'your-admin@email.com';
 --
 -- ============================================================
+-- ============================================================
+-- FUNCTION: Admin assigns a lead to one of their employees
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.assign_lead_to_employee(
+    p_lead_id   UUID,
+    p_assignee  UUID
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid       UUID := auth.uid();
+    v_role      TEXT;
+    v_approved  BOOLEAN;
+BEGIN
+    SELECT role INTO v_role FROM public.profiles WHERE id = v_uid;
+
+    IF v_role NOT IN ('super_admin', 'admin') THEN
+        RETURN json_build_object('error', 'Not authorized to assign leads.');
+    END IF;
+
+    -- Verify the assignee is approved
+    SELECT is_approved INTO v_approved FROM public.profiles WHERE id = p_assignee;
+    IF NOT v_approved THEN
+        RETURN json_build_object('error', 'Employee is not yet approved by super admin.');
+    END IF;
+
+    UPDATE public.leads
+    SET assigned_to = p_assignee, updated_at = NOW()
+    WHERE id = p_lead_id;
+
+    INSERT INTO public.lead_activities (lead_id, user_id, action_type, comment)
+    VALUES (p_lead_id, v_uid, 'assigned', (
+        SELECT 'Assigned to ' || full_name FROM public.profiles WHERE id = p_assignee
+    ));
+
+    RETURN json_build_object('success', true);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.assign_lead_to_employee TO authenticated;
