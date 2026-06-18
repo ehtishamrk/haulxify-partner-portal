@@ -191,7 +191,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('tab-btn-pending').style.display = '';
     }
 
-    await Promise.all([loadStats(), loadUsers()]);
+    const tasks = [loadStats(), loadUsers()];
+    if (profile.role === 'super_admin') tasks.push(loadPending());
+    await Promise.all(tasks);
 
     // ── Real-time: table auto-refreshes when any profile row changes ──────────
     sb.channel('admin-users-realtime')
@@ -289,18 +291,18 @@ ${(() => {
                 <td style="color:var(--c-text-2);">${formatDate(u.created_at)}</td>
                 <td>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                        <button class="btn btn-ghost btn-sm" onclick="openEditUserModal('${u.id}')">Edit</button>
-                        ${u.id !== currentProfile.id ? `
-                            <button class="btn btn-sm" style="background:${u.is_active ? '#f59e0b18' : '#10b98118'};color:${u.is_active ? '#f59e0b' : '#10b981'};border:1px solid ${u.is_active ? '#f59e0b44' : '#10b98144'};"
-                                onclick="toggleUserActive('${u.id}', ${!u.is_active})">
-                                ${u.is_active ? '❄ Freeze' : '✓ Unfreeze'}
-                            </button>
-                            <button class="btn btn-sm" id="del-btn-${u.id}"
-                                style="background:#ef444418;color:#ef4444;border:1px solid #ef444444;"
-                                onclick="confirmDeleteUser('${u.id}', '${escHtml(u.full_name).replace(/'/g,"\\'")}')">
-                                🗑 Delete
-                            </button>
-                        ` : `<span style="font-size:11px;color:var(--c-text-3);padding:4px 6px;">(you)</span>`}
+                        ${currentProfile.role === 'super_admin' ? `<button class="btn btn-ghost btn-sm" onclick="openEditUserModal('${u.id}')">Edit</button>` : ''}
+${u.id !== currentProfile.id && currentProfile.role === 'super_admin' ? `
+    <button class="btn btn-sm" style="background:${u.is_active ? '#f59e0b18' : '#10b98118'};color:${u.is_active ? '#f59e0b' : '#10b981'};border:1px solid ${u.is_active ? '#f59e0b44' : '#10b98144'};"
+        onclick="toggleUserActive('${u.id}', ${!u.is_active})">
+        ${u.is_active ? '❄ Freeze' : '✓ Unfreeze'}
+    </button>
+    <button class="btn btn-sm" id="del-btn-${u.id}"
+        style="background:#ef444418;color:#ef4444;border:1px solid #ef444444;"
+        onclick="confirmDeleteUser('${u.id}', '${escHtml(u.full_name).replace(/'/g,"\\'")}')">
+        🗑 Delete
+    </button>
+` : u.id === currentProfile.id ? `<span style="font-size:11px;color:var(--c-text-3);padding:4px 6px;">(you)</span>` : ''}
                     </div>
                 </td>
             </tr>`;
