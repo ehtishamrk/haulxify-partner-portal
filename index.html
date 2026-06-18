@@ -159,24 +159,37 @@
 
 <script src="app.js"></script>
 <script>
-// ── Listen for Supabase auth events (handles recovery email link) ─────────────
+// ── Flag to block auto-redirect during password recovery flow ─────────────────
+let _inRecoveryFlow = false;
+
+// ── Listen for Supabase auth events ──────────────────────────────────────────
 sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
+        _inRecoveryFlow = true;
         showView('reset');
         return;
     }
-    if ((event === 'SIGNED_IN') && session && !document.getElementById('reset-card').style.display !== 'none') {
+    // Only auto-redirect on SIGNED_IN when we are NOT in a recovery flow
+    if (event === 'SIGNED_IN' && session && !_inRecoveryFlow) {
         const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
         if (profile && profile.is_active) redirectByRole(profile.role);
     }
+    // Clear flag once the password update completes
+    if (event === 'USER_UPDATED') {
+        _inRecoveryFlow = false;
+    }
 });
 
-// ── On load: redirect if already signed in ────────────────────────────────────
+// ── On load: redirect if already signed in (skip if recovery link) ────────────
 (async () => {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
-    // Don't redirect if we're mid-recovery flow
-    if (window.location.hash.includes('type=recovery')) return;
+    const hash = window.location.hash || '';
+    if (hash.includes('type=recovery') || hash.includes('access_token')) {
+        _inRecoveryFlow = true;
+        showView('reset');
+        return;
+    }
     const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
     if (profile && profile.is_active) redirectByRole(profile.role);
 })();
@@ -249,12 +262,12 @@ async function handleResetPassword() {
     btn.disabled = true;
     btn.innerHTML = '<span>Updating…</span>';
     try {
-        const { error } = await sb.auth.updateUser({ password: newPass });
+const { error } = await sb.auth.updateUser({ password: newPass });
         if (error) throw error;
+        _inRecoveryFlow = false; // ← allow the upcoming SIGNED_IN to redirect
         resultEl.style.cssText = 'display:block;padding:12px 14px;border-radius:8px;font-size:13px;background:#10b98122;border:1px solid #10b98144;color:#10b981;';
-        resultEl.textContent   = '✓ Password updated! Signing you in…';
+        resultEl.textContent   = '✓ Password updated! Redirecting…';
         resultEl.classList.remove('hidden');
-        setTimeout(() => { window.location.href = 'leads.html'; }, 2000);
     } catch (err) {
         resultEl.style.cssText = '';
         resultEl.textContent   = err.message || 'Failed to update password. Try again.';
