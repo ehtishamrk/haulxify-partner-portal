@@ -319,7 +319,7 @@ async function createLead(payload) {
     // Notify all admins and super_admins
     try {
         const { data: admins } = await sb.from('profiles')
-            .select('id').in('role', ['super_admin', 'sales_agent'])
+            .select('id').in('role', ['super_admin', 'admin'])
             .eq('is_active', true).neq('id', currentProfile.id);
         if (admins && admins.length) {
             await sb.from('notifications').insert(
