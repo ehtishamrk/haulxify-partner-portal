@@ -285,11 +285,11 @@ if (rp) {
     if (profile.role !== 'status_updater')
         document.getElementById('new-lead-btn').style.display = '';
 
-    // Show Admin link for super_admin
-if (profile.role === 'super_admin') {
-    const ddAdmin = document.getElementById('dropdown-admin-link');
-    if (ddAdmin) ddAdmin.style.display = 'flex';
-}
+// Show Admin link for super_admin and admin
+    if (profile.role === 'super_admin' || profile.role === 'admin') {
+        const ddAdmin = document.getElementById('dropdown-admin-link');
+        if (ddAdmin) ddAdmin.style.display = 'flex';
+    }
 
     await loadLeads();
 });
