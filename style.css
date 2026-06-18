@@ -902,15 +902,111 @@ select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='ht
 }
 
 /* ─── RESPONSIVE ─────────────────────────────────────────────────────────────── */
+/* ─── RESPONSIVE: Tablet nav (768px) ───────────────────────────────────────── */
+@media (max-width: 768px) {
+    .topnav { padding: 0 16px; }
+    .nav-partner-logo { display: none; }
+    .nav-label        { display: none; }
+    .nav-user         { display: none; }
+    .nav-role-pill    { display: none; }
+    .topnav-left .nav-divider { display: none; }
+    .topnav-right { gap: 8px; }
+    /* Keep only one divider in topnav-right (before avatar) */
+    .topnav-right .nav-divider:not(:last-of-type) { display: none; }
+}
+
+/* ─── RESPONSIVE: Mobile (640px) ───────────────────────────────────────────── */
 @media (max-width: 640px) {
-    .form-grid { grid-template-columns: 1fr; }
+
+    /* Layout */
+    .form-grid   { grid-template-columns: 1fr; }
     .detail-grid { grid-template-columns: 1fr; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .page-wrap { padding: 20px 16px 48px; }
-    .leads-table th:nth-child(n+4),
-    .leads-table td:nth-child(n+4) { display: none; }
-    .drawer { width: 100vw; }
-    .modal-panel { margin: 0; border-radius: var(--radius); }
+    .page-wrap   { padding: 16px 12px 72px; }
+
+    /* Page header — stack title + button vertically */
+    .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .page-header > button,
+    .page-header > a.btn { width: 100%; justify-content: center; text-align: center; }
+
+    /* Stats grid */
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .stat-card  { padding: 14px 16px; }
+
+    /* Filters bar — stack search on top, pills scroll horizontally */
+    .filters-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .search-wrap { min-width: unset; }
+    .filter-pills {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+    .filter-pills::-webkit-scrollbar { display: none; }
+
+    /* Section tabs — horizontal scroll */
+    .section-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .section-tabs::-webkit-scrollbar { display: none; }
+    .section-tab { white-space: nowrap; flex-shrink: 0; }
+
+    /* Leads & Users tables — horizontal scroll, min-width keeps content readable */
+    .leads-table-wrap,
+    .users-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .leads-table { min-width: 500px; }
+    .users-table { min-width: 480px; }
+
+    /* Hide lower-priority table columns on mobile */
+    .leads-table th:nth-child(n+6),
+    .leads-table td:nth-child(n+6) { display: none; }
+    .users-table th:nth-child(4),
+    .users-table td:nth-child(4) { display: none; }
+
+    /* Action buttons in table rows */
+    .actions-cell { flex-wrap: wrap; gap: 4px; }
+
+    /* Drawer — full width */
+    .drawer { width: 100vw; border-radius: 0; }
+
+    /* Modal — bottom sheet */
+    .modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+        padding-top: 48px;
+    }
+    .modal-panel {
+        border-radius: 20px 20px 0 0;
+        max-width: 100%;
+        margin: 0;
+        max-height: calc(100vh - 48px);
+    }
+    .modal-body { max-height: calc(100vh - 48px - 132px); }
+
+    /* Modal form sections — tighter padding */
+    .form-section  { padding: 16px 16px; }
+    .modal-header  { padding: 16px 20px; }
+    .modal-footer  { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+    .modal-footer .btn { flex: 1; min-width: 100px; justify-content: center; }
+
+    /* Toast — full width at bottom */
+    #toast-box {
+        left: 12px !important;
+        right: 12px !important;
+        bottom: 16px !important;
+        width: auto !important;
+    }
+    #toast-box > div { max-width: 100% !important; }
+}
+
+/* ─── RESPONSIVE: Very small phones (375px) ────────────────────────────────── */
+@media (max-width: 375px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .nav-logo-text { font-size: 12px; letter-spacing: .04em; }
+    .page-wrap { padding: 12px 10px 72px; }
 }
 
 .hidden { display: none !important; }
