@@ -449,6 +449,9 @@ function popupInitials(name) {
 
 // ── Subscribe to new messages across ALL convos for unread badge ───────────────
 function subscribeAllMessages() {
+    // Load badge count immediately on page load without needing to open the popup
+    loadInitialUnreadCount();
+
     sb.channel('all-messages-popup')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
             const msg = payload.new;
@@ -460,6 +463,26 @@ function subscribeAllMessages() {
             updatePopupBadge();
         })
         .subscribe();
+}
+
+async function loadInitialUnreadCount() {
+    if (!currentUser) return;
+    const { data: parts } = await sb.from('conversation_participants')
+        .select('conversation_id, last_read_at').eq('user_id', currentUser.id);
+    if (!parts || !parts.length) return;
+    let total = 0;
+    for (const part of parts) {
+        const { count } = await sb.from('messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', part.conversation_id)
+            .gt('created_at', part.last_read_at || '1970-01-01')
+            .neq('sender_id', currentUser.id);
+        if (count) { _popupUnread[part.conversation_id] = count; total += count; }
+    }
+    const badge = document.getElementById('chat-popup-unread');
+    const navBadge = document.getElementById('chat-nav-badge');
+    if (badge) { badge.textContent = total > 99 ? '99+' : total; badge.style.display = total ? '' : 'none'; }
+    if (navBadge) { navBadge.textContent = total > 99 ? '99+' : total; navBadge.style.display = total ? '' : 'none'; }
 }
 
 // ── Call from popup ───────────────────────────────────────────────────────────
