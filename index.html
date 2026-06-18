@@ -169,27 +169,36 @@ sb.auth.onAuthStateChange(async (event, session) => {
         showView('reset');
         return;
     }
-    // Only auto-redirect on SIGNED_IN when we are NOT in a recovery flow
-    if (event === 'SIGNED_IN' && session && !_inRecoveryFlow) {
+    if (event === 'SIGNED_IN' && session) {
+        const hash = window.location.hash || '';
+        if (_inRecoveryFlow || hash.includes('type=recovery') || hash.includes('type=invite')) {
+            _inRecoveryFlow = true;
+            showView('reset');
+            return;
+        }
         const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
         if (profile && profile.is_active) redirectByRole(profile.role);
     }
-    // Clear flag once the password update completes
     if (event === 'USER_UPDATED') {
         _inRecoveryFlow = false;
+        const { data: { session: s } } = await sb.auth.getSession();
+        if (s) {
+            const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', s.user.id).single();
+            if (profile && profile.is_active) redirectByRole(profile.role);
+        }
     }
 });
 
-// ── On load: redirect if already signed in (skip if recovery link) ────────────
+// ── On load: check hash FIRST before getSession to avoid race condition ────────
 (async () => {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
     const hash = window.location.hash || '';
-    if (hash.includes('type=recovery') || hash.includes('access_token')) {
+    if (hash.includes('type=recovery') || hash.includes('type=invite') || hash.includes('access_token')) {
         _inRecoveryFlow = true;
         showView('reset');
         return;
     }
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
     const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
     if (profile && profile.is_active) redirectByRole(profile.role);
 })();
