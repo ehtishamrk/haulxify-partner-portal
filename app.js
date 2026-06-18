@@ -330,6 +330,9 @@ async function statusUpdateRpc(leadId, status, comment) {
 }
 
 async function deleteLead(id) {
+    if (!currentProfile || currentProfile.role !== 'super_admin') {
+        throw new Error('Only a Super Admin can delete leads.');
+    }
     const { error } = await sb.from('leads').delete().eq('id', id);
     if (error) throw error;
 }
