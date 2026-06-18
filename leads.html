@@ -263,8 +263,13 @@ let openLeadId    = null;
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     await loadNav();
-    const profile = await checkAuth();
+const profile = await checkAuth();
     if (!profile) return;
+
+    // status_updaters only see leads assigned to them
+    if (profile.role === 'status_updater') {
+        window._statusUpdaterFilter = profile.id;
+    }
 
     // Nav
     document.getElementById('nav-name').textContent = profile.full_name;
