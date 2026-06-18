@@ -34,10 +34,15 @@
     </div>
 
     <!-- Tabs -->
-    <div class="section-tabs">
-        <button class="section-tab active" onclick="switchTab('users')">User Management</button>
-        <button class="section-tab" onclick="switchTab('leads')">All Leads</button>
-    </div>
+<div class="section-tabs">
+    <button class="section-tab active" onclick="switchTab('users')" id="tab-btn-users">
+        <span id="tab-label-users">User Management</span>
+    </button>
+    <button class="section-tab" onclick="switchTab('leads')" id="tab-btn-leads">All Leads</button>
+    <button class="section-tab" onclick="switchTab('pending')" id="tab-btn-pending" style="display:none;">
+        Pending Approvals <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;margin-left:4px;"></span>
+    </button>
+</div>
 
     <!-- ──────────────────── USERS TAB ────────────────────────────────────── -->
     <div id="tab-users">
@@ -70,6 +75,43 @@
 
 </div>
 
+<!-- ──────────────────── PENDING TAB ──────────────────────────────────── -->
+    <div id="tab-pending" style="display:none;">
+        <div class="page-header" style="margin-bottom:18px;">
+            <div>
+                <h2 style="font-size:19px;font-weight:700;">Pending Employee Approvals</h2>
+                <p style="font-size:13px;color:var(--c-text-2);margin-top:3px;">Employees added by admins that need your approval. Setup email is sent on approval.</p>
+            </div>
+        </div>
+        <div id="pending-wrap"><div class="loading-wrap"><div class="spinner"></div> Loading…</div></div>
+    </div>
+
+
+<!-- ═══ ASSIGN LEAD MODAL ══════════════════════════════════════════════════ -->
+<div id="assign-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeAssignModal()">
+<div class="modal-panel" style="max-width:420px;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+        <h2>Assign Lead</h2>
+        <button class="modal-close" onclick="closeAssignModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:none;overflow:visible;">
+        <div class="form-section">
+            <div class="form-group">
+                <label>Assign to Employee <span class="req">*</span></label>
+                <select id="assign-employee-select" class="form-control">
+                    <option value="">— Select employee —</option>
+                </select>
+            </div>
+            <p id="assign-lead-name" style="font-size:13px;color:var(--c-text-2);margin-top:4px;"></p>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeAssignModal()">Cancel</button>
+        <button class="btn btn-primary" id="assign-save-btn" onclick="saveAssignment()">Assign</button>
+    </div>
+</div>
+</div>
+    
 <!-- ═══════════════════════════════════════════════════════════════════
      USER MODAL
 ══════════════════════════════════════════════════════════════════════ -->
@@ -98,12 +140,13 @@
                 </div>
                 <div class="form-group">
                     <label>Role <span class="req">*</span></label>
-                    <select id="u-role" class="form-control">
-                        <option value="">— Select role —</option>
-                        <option value="sales_agent">Sales Agent — can add & edit leads</option>
-                        <option value="status_updater">Status Updater — can only update status & comment</option>
-                        <option value="super_admin">Super Admin — full access</option>
-                    </select>
+<select id="u-role" class="form-control" id="u-role">
+    <option value="">— Select role —</option>
+    <option value="sales_agent">Sales Agent — can add &amp; edit leads</option>
+    <option value="status_updater">Status Updater — can only update status &amp; comment</option>
+    <option value="admin">Admin — can assign leads &amp; manage employees</option>
+    <option value="super_admin">Super Admin — full access</option>
+</select>
                 </div>
             </div>
         </div>
@@ -119,15 +162,17 @@
 <script src="app.js"></script>
 <script src="chat-popup.js"></script>
 <script>
-let allUsers       = [];
-let allAdminLeads  = [];
-let editingUserId  = null;
-let activeTab      = 'users';
+let allUsers        = [];
+let allAdminLeads   = [];
+let allPending      = [];
+let editingUserId   = null;
+let activeTab       = 'users';
+let assigningLeadId = null;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     await loadNav();
-    const profile = await checkAuth(['super_admin']);
+    const profile = await checkAuth(['super_admin', 'admin']);
     if (!profile) return;
 
     document.getElementById('nav-name').textContent = profile.full_name;
@@ -136,7 +181,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         weekday:'long', year:'numeric', month:'long', day:'numeric'
     });
 
-await Promise.all([loadStats(), loadUsers()]);
+    // Adjust UI based on role
+    if (profile.role === 'admin') {
+        // Admin sees their employees + leads (can assign); no full user mgmt
+        document.getElementById('tab-label-users').textContent = 'My Employees';
+        document.querySelector('.btn.btn-primary[onclick="openUserModal()"]')?.setAttribute('onclick', 'openAddEmployeeModal()');
+    } else {
+        // Super admin: show pending approvals tab
+        document.getElementById('tab-btn-pending').style.display = '';
+    }
+
+    await Promise.all([loadStats(), loadUsers()]);
 
     // ── Real-time: table auto-refreshes when any profile row changes ──────────
     sb.channel('admin-users-realtime')
@@ -171,12 +226,14 @@ async function loadStats() {
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('.section-tab').forEach((el, i) => {
-        el.classList.toggle('active', (i === 0 && tab === 'users') || (i === 1 && tab === 'leads'));
+    ['users','leads','pending'].forEach(t => {
+        const btn = document.getElementById('tab-btn-' + t);
+        const panel = document.getElementById('tab-' + t);
+        if (btn)   btn.classList.toggle('active', t === tab);
+        if (panel) panel.style.display = t === tab ? '' : 'none';
     });
-    document.getElementById('tab-users').style.display  = tab === 'users' ? ''  : 'none';
-    document.getElementById('tab-leads').style.display  = tab === 'leads' ? ''  : 'none';
-    if (tab === 'leads' && !allAdminLeads.length) loadAdminLeads();
+    if (tab === 'leads'   && !allAdminLeads.length) loadAdminLeads();
+    if (tab === 'pending' && !allPending.length)    loadPending();
 }
 
 // ─── USERS ────────────────────────────────────────────────────────────────────
@@ -414,7 +471,14 @@ async function deleteUser(userId, name) {
 // ─── ADMIN LEADS VIEW ─────────────────────────────────────────────────────────
 async function loadAdminLeads() {
     try {
-        allAdminLeads = await fetchLeads();
+        // Fetch with assigned_to join
+        const { data, error } = await sb.from('leads').select(`
+            *,
+            agent:profiles!leads_created_by_fkey(id, full_name),
+            assigned:profiles!leads_assigned_to_fkey(id, full_name)
+        `).order('created_at', { ascending: false });
+        if (error) throw error;
+        allAdminLeads = data || [];
         renderAdminLeads();
     } catch (err) {
         document.getElementById('admin-leads-wrap').innerHTML = `<p style="color:var(--c-danger);">${escHtml(err.message)}</p>`;
@@ -430,18 +494,19 @@ function renderAdminLeads() {
     wrap.innerHTML = `
     <div class="leads-table-wrap">
     <table class="leads-table">
-        <thead><tr>
+<thead><tr>
             <th>Company / Owner</th>
             <th>Phone</th>
             <th>Route</th>
             <th>Comp. Type</th>
-<th>Status</th>
+            <th>Status</th>
             <th>Agent</th>
             <th>Lead Date</th>
             <th>Added</th>
+            <th>Assign</th>
         </tr></thead>
         <tbody>
-        ${allAdminLeads.map(l => `<tr>
+${allAdminLeads.map(l => `<tr>
             <td>
                 <div class="lead-company">${escHtml(l.company_name)}</div>
                 <div class="lead-sub">${escHtml(l.owner_name)}</div>
@@ -452,12 +517,255 @@ function renderAdminLeads() {
             <td>${statusBadge(l.status)}</td>
 <td style="color:var(--c-text-2);">${escHtml(l.agent?.full_name||'—')}</td>
             <td style="color:var(--c-text-2);">${l.lead_date ? formatDate(l.lead_date) : '—'}</td>
-            <td style="color:var(--c-text-2);">${formatDate(l.created_at)}</td>
+<td style="color:var(--c-text-2);">${formatDate(l.created_at)}</td>
+            <td>
+                <button class="btn btn-ghost btn-sm"
+                    onclick="openAssignModal('${l.id}','${escHtml(l.company_name).replace(/'/g,"\\'")}')">
+                    Assign
+                </button>
+                ${l.assigned_to ? `<div style="font-size:11px;color:var(--c-text-3);margin-top:3px;">→ ${escHtml(l.assigned?.full_name||'assigned')}</div>` : ''}
+            </td>
         </tr>`).join('')}
         </tbody>
     </table>
     </div>`;
 }
+
+// ─── ADMIN: Add Employee (pending approval flow) ──────────────────────────────
+function openAddEmployeeModal() {
+    editingUserId = null;
+    document.getElementById('user-modal-title').textContent = 'Add Employee';
+    document.getElementById('u-name').value     = '';
+    document.getElementById('u-email').value    = '';
+    document.getElementById('u-email').disabled = false;
+    document.getElementById('u-invite-notice').style.display = 'none';
+    document.getElementById('u-role').value     = 'status_updater';
+    document.getElementById('save-user-btn').textContent = 'Submit for Approval';
+
+    // Show a notice that superadmin must approve first
+    let noticeEl = document.getElementById('u-approval-notice');
+    if (!noticeEl) {
+        noticeEl = document.createElement('div');
+        noticeEl.id = 'u-approval-notice';
+        noticeEl.className = 'notice notice-info';
+        noticeEl.style.margin = '0 0 12px';
+        noticeEl.innerHTML = '⏳ <strong>Approval Required:</strong> This employee will be inactive until the Super Admin approves them. A setup email will be sent on approval.';
+        document.getElementById('u-role').parentElement.insertAdjacentElement('afterend', noticeEl);
+    }
+    noticeEl.style.display = '';
+
+    document.getElementById('user-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+// Override saveUser to handle admin's "add employee" flow
+const _origSaveUser = saveUser;
+window.saveUser = async function() {
+    if (currentProfile.role !== 'admin') { return _origSaveUser(); }
+
+    const name  = document.getElementById('u-name').value.trim();
+    const email = document.getElementById('u-email').value.trim();
+    const role  = document.getElementById('u-role').value;
+    const btn   = document.getElementById('save-user-btn');
+
+    if (!name)  { showToast('Full name is required.', 'error'); return; }
+    if (!email) { showToast('Email is required.', 'error'); return; }
+    if (!role)  { showToast('Please select a role.', 'error'); return; }
+
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    try {
+        // Create profile row (not active, not approved) — no invite email yet
+        const { data: { session } } = await sb.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/invite-user`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                email, fullName: name, role,
+                pendingApproval: true,
+                approvedBy: currentProfile.id,
+                redirectTo: window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/') + 'index.html'
+            })
+        });
+        const text = await res.text();
+        let result;
+        try { result = JSON.parse(text); } catch { throw new Error(text); }
+        if (!res.ok) throw new Error(result.error || `Failed (${res.status})`);
+
+        // Mark as pending in profiles
+        const { data: profiles } = await sb.from('profiles').select('id').eq('email', email);
+        if (profiles && profiles[0]) {
+            await sb.from('profiles').update({
+                is_approved: false,
+                is_active: false,
+                approved_by: currentProfile.id
+            }).eq('id', profiles[0].id);
+        }
+
+        // Notify super_admin
+        const { data: superAdmins } = await sb.from('profiles')
+            .select('id').eq('role', 'super_admin').eq('is_active', true);
+        if (superAdmins?.length) {
+            await sb.from('notifications').insert(superAdmins.map(a => ({
+                user_id: a.id,
+                type: 'pending_approval',
+                title: '👤 Employee Needs Approval',
+                body: `${currentProfile.full_name} added "${name}" (${email}). Approve them in Pending Approvals.`,
+            })));
+        }
+
+        showToast(`Employee submitted for approval. Super Admin will be notified.`, 'success');
+        closeUserModal();
+        await loadUsers();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit for Approval';
+    }
+};
+
+// ─── PENDING APPROVALS (super_admin only) ─────────────────────────────────────
+async function loadPending() {
+    try {
+        allPending = await fetchPendingEmployees();
+        renderPending();
+        // Update badge
+        const badge = document.getElementById('pending-badge');
+        if (badge) {
+            badge.textContent = allPending.length;
+            badge.style.display = allPending.length ? '' : 'none';
+        }
+    } catch (err) {
+        document.getElementById('pending-wrap').innerHTML = `<p style="color:var(--c-danger);">${escHtml(err.message)}</p>`;
+    }
+}
+
+function renderPending() {
+    const wrap = document.getElementById('pending-wrap');
+    if (!allPending.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">No pending approvals</div></div>`;
+        return;
+    }
+    wrap.innerHTML = `
+    <div class="users-table-wrap">
+    <table class="users-table">
+        <thead><tr>
+            <th>Employee</th><th>Role</th><th>Added By</th><th>Submitted</th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+        ${allPending.map(u => {
+            const rm = ROLE_META[u.role] || { label: u.role, color: '#6b7280' };
+            return `<tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="avatar">${(u.full_name||'?')[0].toUpperCase()}</div>
+                        <div>
+                            <div class="fw-600">${escHtml(u.full_name)}</div>
+                            <div style="font-size:12px;color:var(--c-text-2);">${escHtml(u.email)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="role-pill" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span></td>
+                <td style="color:var(--c-text-2);">${escHtml(u.approver?.full_name || '—')}</td>
+                <td style="color:var(--c-text-2);">${formatDate(u.created_at)}</td>
+                <td>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-sm" style="background:#10b98118;color:#10b981;border:1px solid #10b98144;"
+                            onclick="doApproveEmployee('${u.id}','${escHtml(u.full_name).replace(/'/g,"\\'")}')">
+                            ✓ Approve &amp; Send Setup Email
+                        </button>
+                        <button class="btn btn-sm" style="background:#ef444418;color:#ef4444;border:1px solid #ef444444;"
+                            onclick="doRejectEmployee('${u.id}','${escHtml(u.full_name).replace(/'/g,"\\'")}')">
+                            ✕ Reject
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('')}
+        </tbody>
+    </table>
+    </div>`;
+}
+
+async function doApproveEmployee(userId, name) {
+    if (!confirm(`Approve "${name}" and send them a setup email?`)) return;
+    try {
+        await approveEmployee(userId);
+        showToast(`${name} approved! Setup email sent.`, 'success');
+        await loadPending();
+        await loadUsers();
+        await loadStats();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+async function doRejectEmployee(userId, name) {
+    if (!confirm(`Reject and delete "${name}"?`)) return;
+    try {
+        await sb.from('profiles').delete().eq('id', userId);
+        showToast(`${name} rejected and removed.`, 'success');
+        await loadPending();
+        await loadStats();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    }
+}
+
+// ─── ASSIGN LEAD ──────────────────────────────────────────────────────────────
+async function openAssignModal(leadId, leadName) {
+    assigningLeadId = leadId;
+    document.getElementById('assign-lead-name').textContent = 'Lead: ' + leadName;
+    const sel = document.getElementById('assign-employee-select');
+    sel.innerHTML = '<option value="">Loading…</option>';
+
+    // Load employees: super_admin sees all status_updaters; admin sees their own
+    let employees;
+    if (currentProfile.role === 'super_admin') {
+        const { data } = await sb.from('profiles')
+            .select('id, full_name')
+            .eq('role', 'status_updater')
+            .eq('is_active', true)
+            .eq('is_approved', true)
+            .order('full_name');
+        employees = data || [];
+    } else {
+        employees = await fetchMyEmployees(currentProfile.id);
+    }
+
+    sel.innerHTML = '<option value="">— Select employee —</option>' +
+        employees.map(e => `<option value="${e.id}">${escHtml(e.full_name)}</option>`).join('');
+
+    document.getElementById('assign-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAssignModal() {
+    document.getElementById('assign-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+    assigningLeadId = null;
+}
+
+async function saveAssignment() {
+    const assigneeId = document.getElementById('assign-employee-select').value;
+    if (!assigneeId) { showToast('Please select an employee.', 'error'); return; }
+    const btn = document.getElementById('assign-save-btn');
+    btn.disabled = true; btn.textContent = 'Assigning…';
+    try {
+        await assignLead(assigningLeadId, assigneeId);
+        showToast('Lead assigned successfully.', 'success');
+        closeAssignModal();
+        if (activeTab === 'leads') loadAdminLeads();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Assign';
+    }
+}
+    
 </script>
 </body>
 </html>
