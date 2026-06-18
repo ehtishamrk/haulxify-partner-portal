@@ -270,12 +270,17 @@ function escHtml(s) {
 async function fetchLeads(filters = {}) {
     let q = sb.from('leads').select(`
         *,
-        agent:profiles!leads_created_by_fkey(id, full_name, email)
+        agent:profiles!leads_created_by_fkey(id, full_name, email),
+        assigned:profiles!leads_assigned_to_fkey(id, full_name)
     `).order('created_at', { ascending: false });
+
+    // status_updaters only see leads assigned to them
+    if (window._statusUpdaterFilter) {
+        q = q.eq('assigned_to', window._statusUpdaterFilter);
+    }
 
     if (filters.status && filters.status !== 'all')
         q = q.eq('status', filters.status);
-
     if (filters.search && filters.search.trim()) {
         const s = filters.search.trim();
         q = q.or(`owner_name.ilike.%${s}%,company_name.ilike.%${s}%,phone.ilike.%${s}%`);
