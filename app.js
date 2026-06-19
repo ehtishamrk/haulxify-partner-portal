@@ -2,7 +2,13 @@
 
 // ─── Supabase Client ─────────────────────────────────────────────────────────
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false   // index.html handles the email-link exchange manually
+    }
+});
 
 let currentUser    = null;
 let currentProfile = null;
