@@ -453,7 +453,9 @@ window.popupSend = async function() {
             const strip = document.getElementById('popup-file-strip');
             if (strip) strip.innerHTML = '';
         } else {
-            await sb.from('messages').insert({ conversation_id: _popupConvId, sender_id: currentUser.id, content });
+            const { error: insertErr } = await sb.from('messages')
+    .insert({ conversation_id: _popupConvId, sender_id: currentUser.id, content });
+if (insertErr) throw new Error(insertErr.message);
         }
         if (input) { input.value = ''; input.style.height = ''; }
     } catch(err) { showToast('Send failed: ' + err.message, 'error'); }
