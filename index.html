@@ -159,92 +159,90 @@
 
 <script src="app.js"></script>
 <script>
-// ── Flag to block auto-redirect during password recovery flow ─────────────────
+// ── Recovery / invite session handling ─────────────────────────────────────────
+// detectSessionInUrl is OFF (set in app.js), so this code has sole, deterministic
+// control over reading the email link — no race condition with the SDK.
 let _inRecoveryFlow = false;
 
-// ── Listen for Supabase auth events ──────────────────────────────────────────
 sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
         _inRecoveryFlow = true;
         showView('reset');
         return;
     }
-    if (event === 'SIGNED_IN' && session) {
-        const hash = window.location.hash || '';
-        if (_inRecoveryFlow || hash.includes('type=recovery') || hash.includes('type=invite')) {
-            _inRecoveryFlow = true;
-            showView('reset');
-            return;
-        }
+    if (event === 'SIGNED_IN' && session && !_inRecoveryFlow) {
         const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
         if (profile && profile.is_active) redirectByRole(profile.role);
     }
-    if (event === 'USER_UPDATED') {
-        _inRecoveryFlow = false;
-        const { data: { session: s } } = await sb.auth.getSession();
-        if (s) {
-            const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', s.user.id).single();
-            if (profile && profile.is_active) redirectByRole(profile.role);
-        }
-    }
 });
 
-// ── On load: exchange token from URL hash, then decide what to show ────────────
+// ── On load: establish session from the email link (any format), or redirect ──
 (async () => {
-    const hash    = window.location.hash || '';
-    const search  = window.location.search || '';
+    const hashParams   = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    const searchParams = new URLSearchParams(window.location.search || '');
 
-    // Parse token type from hash or query string (Supabase puts it in hash for invites)
-    const isRecovery = hash.includes('type=recovery') || search.includes('type=recovery');
-    const isInvite   = hash.includes('type=invite')   || search.includes('type=invite');
-    const hasToken   = hash.includes('access_token')  || search.includes('access_token');
+    const code         = searchParams.get('code');
+    const accessToken  = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const tokenHash     = hashParams.get('token_hash') || searchParams.get('token_hash');
+    const linkType      = hashParams.get('type') || searchParams.get('type') || 'recovery';
+    const urlError       = hashParams.get('error_description') || searchParams.get('error_description');
 
-    if (isRecovery || isInvite || hasToken) {
-        _inRecoveryFlow = true;
-        showView('reset');
+    const isLinkAttempt = !!(code || accessToken || tokenHash || urlError);
 
-        const btn      = document.getElementById('reset-submit-btn');
-        const resultEl = document.getElementById('reset-result');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<span>Loading…</span>'; }
-
-        // For invite links, extract the access_token from the hash and set session directly
-        if (isInvite || hasToken) {
-            try {
-                const params = new URLSearchParams(hash.replace('#', ''));
-                const accessToken  = params.get('access_token');
-                const refreshToken = params.get('refresh_token') || '';
-                if (accessToken) {
-                    await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-                }
-            } catch(e) { console.warn('setSession error:', e); }
-        }
-
-        // Wait up to 8 seconds for session to be ready
-        let waited = 0;
-        while (waited < 8000) {
-            const { data: { session } } = await sb.auth.getSession();
-            if (session) {
-                if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
-                return;
-            }
-            await new Promise(r => setTimeout(r, 300));
-            waited += 300;
-        }
-
-        // Link expired
-        if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
-        if (resultEl) {
-            resultEl.style.cssText = '';
-            resultEl.textContent = 'This link has expired or already been used. Please contact your admin.';
-            resultEl.classList.remove('hidden');
-        }
+    if (!isLinkAttempt) {
+        // Normal page load — just check for an existing session
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) return;
+        const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
+        if (profile && profile.is_active) redirectByRole(profile.role);
         return;
     }
 
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
-    const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
-    if (profile && profile.is_active) redirectByRole(profile.role);
+    // We're handling an email link
+    _inRecoveryFlow = true;
+    showView('reset');
+    const btn      = document.getElementById('reset-submit-btn');
+    const resultEl = document.getElementById('reset-result');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span>Verifying link…</span>'; }
+
+    const showExpired = () => {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span>Link Expired</span>'; }
+        if (resultEl) {
+            resultEl.style.cssText = '';
+            resultEl.textContent = 'This link has expired or already been used. Please request a new one.';
+            resultEl.classList.remove('hidden');
+        }
+    };
+
+    if (urlError) { showExpired(); return; }
+
+    try {
+        let exchanged = false;
+        if (code) {
+            const { error } = await sb.auth.exchangeCodeForSession(code);
+            if (error) throw error;
+            exchanged = true;
+        } else if (accessToken) {
+            const { error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' });
+            if (error) throw error;
+            exchanged = true;
+        } else if (tokenHash) {
+            const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: linkType });
+            if (error) throw error;
+            exchanged = true;
+        }
+        if (!exchanged) { showExpired(); return; }
+
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { showExpired(); return; }
+
+        history.replaceState(null, '', window.location.pathname); // clean the URL
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span>Set New Password</span>'; }
+    } catch (err) {
+        console.warn('Recovery link exchange failed:', err);
+        showExpired();
+    }
 })();
 
 // ── View switcher ─────────────────────────────────────────────────────────────
@@ -312,15 +310,29 @@ async function handleResetPassword() {
         resultEl.textContent = 'Passwords do not match.';
         resultEl.classList.remove('hidden'); return;
     }
+// Guard against an expired/missing session instead of letting Supabase
+    // throw a raw "Auth session missing!" error.
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+        resultEl.textContent = 'Your link has expired or already been used. Please request a new one.';
+        resultEl.classList.remove('hidden');
+        return;
+    }
+
     btn.disabled = true;
     btn.innerHTML = '<span>Updating…</span>';
     try {
-const { error } = await sb.auth.updateUser({ password: newPass });
+        const { error } = await sb.auth.updateUser({ password: newPass });
         if (error) throw error;
-        _inRecoveryFlow = false; // ← allow the upcoming SIGNED_IN to redirect
         resultEl.style.cssText = 'display:block;padding:12px 14px;border-radius:8px;font-size:13px;background:#10b98122;border:1px solid #10b98144;color:#10b981;';
         resultEl.textContent   = '✓ Password updated! Redirecting…';
         resultEl.classList.remove('hidden');
+
+        const { data: profile } = await sb.from('profiles').select('role, is_active').eq('id', session.user.id).single();
+        setTimeout(() => {
+            if (profile && profile.is_active) redirectByRole(profile.role);
+            else window.location.href = 'index.html';
+        }, 1200);
     } catch (err) {
         resultEl.style.cssText = '';
         resultEl.textContent   = err.message || 'Failed to update password. Try again.';
