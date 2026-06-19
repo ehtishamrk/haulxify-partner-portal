@@ -1002,9 +1002,10 @@ function subscribeMessages(convId) {
             schema: 'public',
             table: 'messages',
             filter: `conversation_id=eq.${convId}`
-        }, async (payload) => {
-            const msg    = payload.new;
-            const sender = allProfiles.find(p => p.id === msg.sender_id);
+}, async (payload) => {
+    const msg    = payload.new;
+    if (document.querySelector(`.msg-row[data-id="${msg.id}"]`)) return; // ← ADD THIS
+    const sender = allProfiles.find(p => p.id === msg.sender_id);
             if (!sender) await loadProfiles();
             appendMessage(msg);
 
@@ -1121,7 +1122,19 @@ async function sendMessage() {
                 if (upErr) { showToast('Upload failed: ' + f.file.name, 'error'); continue; }
                 const { data: { publicUrl } } = sb.storage.from('chat-files').getPublicUrl(path);
 
-                await sb.from('messages').insert({
+                const { data: sentMsg, error: insertErr } = await sb.from('messages')
+    .insert({
+        conversation_id: activeConvId,
+        sender_id: currentUser.id,
+        content: f === pendingFiles[pendingFiles.length - 1] ? content : '',
+        file_url: publicUrl,
+        file_name: f.file.name,
+        file_type: f.file.type
+    })
+    .select('id,content,file_url,file_name,file_type,sender_id,created_at')
+    .single();
+if (insertErr) { showToast('Insert failed: ' + insertErr.message, 'error'); continue; }
+appendMessage(sentMsg);
                     conversation_id: activeConvId,
                     sender_id: currentUser.id,
                     content: f === pendingFiles[pendingFiles.length - 1] ? content : '',
@@ -1132,15 +1145,16 @@ async function sendMessage() {
             }
             pendingFiles = [];
             document.getElementById('upload-preview').innerHTML = '';
-        } else {
-            await sb.from('messages').insert({
-                conversation_id: activeConvId,
-                sender_id: currentUser.id,
-                content
-            });
-        }
-        input.value = '';
-        input.style.height = '';
+} else {
+    const { data: sentMsg, error: insertErr } = await sb.from('messages')
+        .insert({ conversation_id: activeConvId, sender_id: currentUser.id, content })
+        .select('id,content,file_url,file_name,file_type,sender_id,created_at')
+        .single();
+    if (insertErr) throw new Error(insertErr.message);
+    appendMessage(sentMsg); // show immediately, don't wait for Realtime
+}
+input.value = '';
+input.style.height = '';
     } catch (err) {
         showToast('Failed to send: ' + err.message, 'error');
     } finally {
