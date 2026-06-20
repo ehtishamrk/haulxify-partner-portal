@@ -400,16 +400,24 @@ function popupMsgHTML(msg) {
     } else {
         content = escHtml(msg.content || '');
     }
-    return `<div class="popup-msg-row ${isMe ? 'mine' : ''}">
+    return `<div class="popup-msg-row ${isMe ? 'mine' : ''}" data-id="${msg.id}">
         <div class="popup-msg-avatar">${sender?.avatar_url ? `<img src="${sender.avatar_url}">` : init}</div>
         <div class="popup-bubble">${content}</div>
     </div>`;
+}
+
+function popupAppendMessage(msg) {
+    const wrap = document.getElementById('popup-messages');
+    if (!wrap) return;
+    wrap.insertAdjacentHTML('beforeend', popupMsgHTML(msg));
+    wrap.scrollTop = wrap.scrollHeight;
 }
 
 function popupSubscribe(convId) {
     if (_popupChannel) sb.removeChannel(_popupChannel);
     _popupChannel = sb.channel('popup:' + convId)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` }, (payload) => {
+            if (document.querySelector(`.popup-msg-row[data-id="${payload.new.id}"]`)) return;
             const wrap = document.getElementById('popup-messages');
             if (wrap) {
                 wrap.insertAdjacentHTML('beforeend', popupMsgHTML(payload.new));
@@ -437,19 +445,24 @@ window.popupSend = async function() {
                 const { error } = await sb.storage.from('chat-files').upload(path, f.file);
                 if (error) { showToast('Upload failed: ' + f.file.name, 'error'); continue; }
                 const { data: { publicUrl } } = sb.storage.from('chat-files').getPublicUrl(path);
-                await sb.from('messages').insert({
+                const { data: sentMsg, error: insertErr } = await sb.from('messages').insert({
                     conversation_id: _popupConvId, sender_id: currentUser.id,
                     content: f === _popupPending[_popupPending.length - 1] ? content : '',
                     file_url: publicUrl, file_name: f.file.name, file_type: f.file.type
-                });
+                }).select('id,content,file_url,file_name,file_type,sender_id,created_at').single();
+                if (insertErr) { showToast('Send failed: ' + insertErr.message, 'error'); continue; }
+                popupAppendMessage(sentMsg);
             }
             _popupPending = [];
             const strip = document.getElementById('popup-file-strip');
             if (strip) strip.innerHTML = '';
         } else {
-            const { error: insertErr } = await sb.from('messages')
-    .insert({ conversation_id: _popupConvId, sender_id: currentUser.id, content });
+            const { data: sentMsg, error: insertErr } = await sb.from('messages')
+    .insert({ conversation_id: _popupConvId, sender_id: currentUser.id, content })
+    .select('id,content,file_url,file_name,file_type,sender_id,created_at')
+    .single();
 if (insertErr) throw new Error(insertErr.message);
+popupAppendMessage(sentMsg); // show immediately, don't wait for Realtime
         }
         if (input) { input.value = ''; input.style.height = ''; }
     } catch(err) { showToast('Send failed: ' + err.message, 'error'); }
