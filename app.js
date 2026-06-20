@@ -13,6 +13,14 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 let currentUser    = null;
 let currentProfile = null;
 
+// ─── Detect the logged-in account changing under this tab (e.g. another tab logged
+// into a different account) and force a clean reload instead of silent state mismatch ───
+sb.auth.onAuthStateChange((event, session) => {
+    if (currentUser && session?.user?.id && session.user.id !== currentUser.id) {
+        window.location.reload();
+    }
+});
+
 async function loadNav() {
     const mount = document.getElementById('topnav-mount');
     if (!mount) return;
