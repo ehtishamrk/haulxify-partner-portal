@@ -281,3 +281,75 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.assign_lead_to_employee TO authenticated;
+-- ============================================================
+-- CHAT: RLS POLICIES FOR messages / conversations / conversation_participants
+-- ============================================================
+
+ALTER TABLE public.conversations             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages                  ENABLE ROW LEVEL SECURITY;
+
+-- CONVERSATIONS: any authenticated user can create one,
+-- and can only see conversations they belong to
+DROP POLICY IF EXISTS "conversations_select" ON public.conversations;
+CREATE POLICY "conversations_select" ON public.conversations
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.conversation_participants
+            WHERE conversation_id = id AND user_id = auth.uid()
+        )
+    );
+
+DROP POLICY IF EXISTS "conversations_insert" ON public.conversations;
+CREATE POLICY "conversations_insert" ON public.conversations
+    FOR INSERT TO authenticated
+    WITH CHECK (true);
+
+-- CONVERSATION_PARTICIPANTS: a user can see rows for conversations
+-- they're part of, and can add participants when creating a conversation
+DROP POLICY IF EXISTS "participants_select" ON public.conversation_participants;
+CREATE POLICY "participants_select" ON public.conversation_participants
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.conversation_participants cp
+            WHERE cp.conversation_id = conversation_participants.conversation_id
+              AND cp.user_id = auth.uid()
+        )
+    );
+
+DROP POLICY IF EXISTS "participants_insert" ON public.conversation_participants;
+CREATE POLICY "participants_insert" ON public.conversation_participants
+    FOR INSERT TO authenticated
+    WITH CHECK (true);
+
+DROP POLICY IF EXISTS "participants_update_own" ON public.conversation_participants;
+CREATE POLICY "participants_update_own" ON public.conversation_participants
+    FOR UPDATE TO authenticated
+    USING (user_id = auth.uid());
+
+-- MESSAGES: a user can read/send messages only in conversations
+-- they are a participant of, and only as themselves
+DROP POLICY IF EXISTS "messages_select" ON public.messages;
+CREATE POLICY "messages_select" ON public.messages
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.conversation_participants
+            WHERE conversation_id = messages.conversation_id
+              AND user_id = auth.uid()
+        )
+    );
+
+DROP POLICY IF EXISTS "messages_insert" ON public.messages;
+CREATE POLICY "messages_insert" ON public.messages
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        sender_id = auth.uid()
+        AND EXISTS (
+            SELECT 1 FROM public.conversation_participants
+            WHERE conversation_id = messages.conversation_id
+              AND user_id = auth.uid()
+        )
+    );
