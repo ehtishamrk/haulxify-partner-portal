@@ -326,7 +326,7 @@ window.popupShowNewDM = function() {
 };
 
 window.popupCreateDM = async function(otherUserId) {
-    const { data: conv } = await sb.from('conversations').insert({ type: 'dm' }).select().single();
+    const { data: conv } = await sb.from('conversations').insert({ type: 'dm', created_by: currentUser.id }).select().single();
     if (!conv) { showToast('Could not create conversation', 'error'); return; }
     await sb.from('conversation_participants').insert([
         { conversation_id: conv.id, user_id: currentUser.id },
