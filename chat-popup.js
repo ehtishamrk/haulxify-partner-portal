@@ -497,6 +497,16 @@ function subscribeAllMessages() {
     // Load badge count immediately on page load without needing to open the popup
     loadInitialUnreadCount();
 
+    sb.channel('my-inbox-participants-popup:' + currentUser.id)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'conversation_participants',
+            filter: `user_id=eq.${currentUser.id}`
+        }, () => {
+            _popupConvs = []; // forces a fresh reload the next time the popup is opened
+            loadInitialUnreadCount();
+        })
+        .subscribe();
+
     sb.channel('all-messages-popup')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
             const msg = payload.new;
