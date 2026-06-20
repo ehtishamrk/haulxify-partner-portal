@@ -647,13 +647,13 @@ async function loadConversations() {
 
     if (!convs) return;
 
-    // For DMs, figure out the other person
+// For DMs, figure out the other person
     allConversations = convs.map(c => {
         if (c.type === 'group') return { ...c, displayName: c.name || 'General', isGroup: true };
         const otherUserId = c.conversation_participants?.find(p => p.user_id !== currentUser.id)?.user_id;
         const otherUser   = allProfiles.find(p => p.id === otherUserId);
         return { ...c, displayName: otherUser?.full_name || 'DM', otherUser, isGroup: false };
-    });
+    }).filter(c => c.isGroup || c.otherUser); // hide DMs where the other person was deleted/frozen
 
     // Sort: group first, then DMs alphabetically
     allConversations.sort((a, b) => {
@@ -761,7 +761,11 @@ async function openConversation(convId) {
     // Update sidebar active state
     document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
     const activeEl = document.querySelector(`.conv-item[onclick="openConversation('${convId}')"]`);
-    if (activeEl) activeEl.classList.add('active');
+    if (activeEl) {
+        activeEl.classList.add('active');
+        const badgeEl = activeEl.querySelector('.unread-badge');
+        if (badgeEl) badgeEl.remove();
+    }
 
     // Mark as read
     await sb.from('conversation_participants')
