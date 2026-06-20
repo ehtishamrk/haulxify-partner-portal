@@ -326,18 +326,11 @@ window.popupShowNewDM = function() {
 };
 
 window.popupCreateDM = async function(otherUserId) {
-    const { data: conv, error: convErr } = await sb.from('conversations').insert({ type: 'dm', created_by: currentUser.id }).select().single();
-    if (convErr) { console.error('Conversation insert error:', convErr); showToast('Could not create conversation: ' + convErr.message, 'error'); return; }
-    if (!conv) { showToast('Could not create conversation', 'error'); return; }
-    await sb.from('conversation_participants').insert([
-        { conversation_id: conv.id, user_id: currentUser.id },
-        { conversation_id: conv.id, user_id: otherUserId }
-    ]);
+    const { data: convId, error } = await sb.rpc('find_or_create_dm', { p_other_user_id: otherUserId });
+    if (error || !convId) { showToast('Could not create conversation', 'error'); return; }
     await initPopupData();
-    const newConv = _popupConvs.find(c => c.id === conv.id);
-    if (newConv) popupOpenConv(conv.id);
+    popupOpenConv(convId);
 };
-
 // ── Open conversation in popup ────────────────────────────────────────────────
 window.popupOpenConv = async function(convId) {
     _popupConvId = convId;
