@@ -1446,8 +1446,6 @@ async function deleteMessage(msgId) {
     closeCtxMenu();
     const _conv = allConversations.find(c => c.id === activeConvId);
     if (_conv?.is_general) { showToast('Messages in General cannot be deleted.', 'error'); return; }
-    const _conv = allConversations.find(c => c.id === activeConvId);
-    if (_conv?.is_general) { showToast('Messages in General cannot be deleted.', 'error'); return; }
     // Soft delete — set deleted flag so other clients see it via Realtime UPDATE
     const { error } = await sb.from('messages')
         .update({ deleted: true, content: null, file_url: null, file_name: null, file_type: null })
