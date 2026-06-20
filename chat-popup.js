@@ -217,12 +217,12 @@ async function initPopupData() {
 
     _popupProfiles = profiles || [];
 
-    _popupConvs = (convs || []).map(c => {
+_popupConvs = (convs || []).map(c => {
         if (c.type === 'group') return { ...c, displayName: c.name || 'General', isGroup: true };
         const otherId   = c.conversation_participants?.find(p => p.user_id !== currentUser.id)?.user_id;
         const otherUser = _popupProfiles.find(p => p.id === otherId);
         return { ...c, displayName: otherUser?.full_name || 'DM', otherUser, isGroup: false };
-    }).sort((a, b) => {
+    }).filter(c => c.isGroup || c.otherUser).sort((a, b) => {
         if (a.isGroup && !b.isGroup) return -1;
         if (!a.isGroup && b.isGroup) return 1;
         return a.displayName.localeCompare(b.displayName);
