@@ -622,6 +622,7 @@ let pendingFiles      = [];
 let typingTimer       = null;
 let onlineUsers       = new Set();
 let unreadCounts      = {};
+let permsChannel      = null;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -894,7 +895,8 @@ await loadMessages(convId);
 
     // Subscribe to permission changes for this conversation
     // Filter by conversation_id so every member (not just the admin) receives updates
-    sb.channel('perms:' + convId)
+    if (permsChannel) sb.removeChannel(permsChannel);
+    permsChannel = sb.channel('perms:' + convId)
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
