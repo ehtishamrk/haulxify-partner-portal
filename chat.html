@@ -400,6 +400,21 @@
     display: flex; align-items: center; gap: 5px;
 }
 
+.edit-textarea {
+    width: 100%; min-width: 160px; max-width: 220px;
+    background: rgba(127,127,127,.12);
+    border: 1px solid var(--c-border);
+    border-radius: 8px; padding: 6px 8px;
+    color: inherit; font: inherit; resize: none; outline: none;
+}
+.edit-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+.edit-actions button {
+    background: none; border: none; cursor: pointer;
+    font-size: 11px; font-weight: 600; color: inherit; opacity: .85; padding: 2px 4px;
+}
+.edit-actions button:hover { opacity: 1; text-decoration: underline; }
+.msg-edited-tag { font-size: 10px; opacity: .6; font-style: italic; margin-left: 4px; }
+    
 /* ── Call modal ──────────────────────────────────────────────────────────── */
 .call-overlay {
     position: fixed; inset: 0; z-index: 9500;
@@ -791,9 +806,8 @@ function filterSidebar(val) { renderSidebar(val); }
 async function openConversation(convId) {
     activeConvId = convId;
     pendingFiles = [];
-    hideTypingBubble();
-    clearTimeout(typingStopTimer);
-    isBroadcastingTyping = false;
+hideTypingBubble();
+    stopTypingBroadcast();
 
     // Update sidebar active state
     document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
@@ -958,7 +972,7 @@ await loadMessages(convId);
 async function loadMessages(convId) {
     const { data: msgs } = await sb
         .from('messages')
-        .select('id,content,file_url,file_name,file_type,sender_id,created_at')
+        .select('id,content,file_url,file_name,file_type,sender_id,created_at,deleted,edited_at')
         .eq('conversation_id', convId)
         .order('created_at', { ascending: true })
         .limit(200);
@@ -1006,7 +1020,7 @@ function renderMessages(msgs) {
                     <span class="role-pill-sm" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span>
                 </div>` : ''}
                 <div style="display:flex;align-items:flex-end;gap:4px;${isMe ? 'flex-direction:row-reverse;' : ''}">
-                    <div class="bubble">${msg.deleted ? '<span class="msg-deleted"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Message deleted</span>' : renderBubbleContent(msg)}</div>
+                    <div class="bubble">${msg.deleted ? '<span class="msg-deleted"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Message deleted</span>' : renderBubbleContent(msg) + (msg.edited_at ? '<span class="msg-edited-tag"> (edited)</span>' : '')}
                     <span class="bubble-time">${timeStr}</span>
                 </div>
             </div>
@@ -1065,19 +1079,21 @@ function subscribeMessages(convId) {
             const conv = allConversations.find(c => c.id === convId);
             if (conv) { conv.lastMessage = msg; renderSidebar(document.getElementById('sidebar-search').value); }
         })
-        .on('postgres_changes', {
+      .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
             table: 'messages',
             filter: `conversation_id=eq.${convId}`
         }, (payload) => {
-            // Handle soft-delete (deleted flag set to true)
+            const row = document.querySelector(`.msg-row[data-id="${payload.new.id}"]`);
+            if (!row) return;
+            const bubble = row.querySelector('.bubble');
+            if (!bubble) return;
+
             if (payload.new.deleted) {
-                const row = document.querySelector(`.msg-row[data-id="${payload.new.id}"]`);
-                if (row) {
-                    const bubble = row.querySelector('.bubble');
-                    if (bubble) bubble.innerHTML = '<span class="msg-deleted"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Message deleted</span>';
-                }
+                bubble.innerHTML = '<span class="msg-deleted"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Message deleted</span>';
+            } else if (payload.new.edited_at) {
+                bubble.innerHTML = renderBubbleContent(payload.new) + '<span class="msg-edited-tag"> (edited)</span>';
             }
         })
         .subscribe();
@@ -1191,9 +1207,7 @@ appendMessage(sentMsg);
 }
 input.value = '';
 input.style.height = '';
-        clearTimeout(typingStopTimer);
-        isBroadcastingTyping = false;
-        typingChannel?.send({ type: 'broadcast', event: 'stop_typing', payload: { user_id: currentUser.id } });
+        stopTypingBroadcast();
     } catch (err) {
         showToast('Failed to send: ' + err.message, 'error');
     } finally {
@@ -1212,10 +1226,10 @@ function autoGrow(el) {
 }
 
 // ─── TYPING INDICATOR ──────────────────────────────────────────────────────────
-let typingChannel        = null;
-let typingHideTimer      = null;
-let typingStopTimer      = null;
-let isBroadcastingTyping = false;
+let typingChannel     = null;
+let typingHideTimer   = null;   // receiver-side: safety auto-hide if a stop_typing gets lost
+let typingResendTimer = null;   // sender-side: keeps re-pinging 'typing' while keystrokes continue
+let typingStopTimer   = null;   // sender-side: detects when keystrokes actually stop
 
 function subscribeTyping(convId) {
     if (typingChannel) sb.removeChannel(typingChannel);
@@ -1232,6 +1246,8 @@ function subscribeTyping(convId) {
 }
 
 function showTypingBubble(userId) {
+    // Refreshed on every 'typing' ping — this is what keeps the bubble alive
+    // for as long as the other person keeps typing.
     clearTimeout(typingHideTimer);
     const wrap = document.getElementById('messages-wrap');
     if (!wrap) return;
@@ -1249,7 +1265,8 @@ function showTypingBubble(userId) {
         wrap.appendChild(row);
         wrap.scrollTop = wrap.scrollHeight;
     }
-    typingHideTimer = setTimeout(hideTypingBubble, 3000); // auto-hide if a stop_typing event is missed
+    // Generous safety window — only triggers if a stop_typing broadcast is lost (e.g. dropped connection)
+    typingHideTimer = setTimeout(hideTypingBubble, 4000);
 }
 
 function hideTypingBubble() {
@@ -1260,17 +1277,26 @@ function hideTypingBubble() {
 
 function onTyping() {
     if (!activeConvId || !typingChannel) return;
-    if (!isBroadcastingTyping) {
-        isBroadcastingTyping = true;
+
+    // Keep re-broadcasting 'typing' every 1.5s for as long as keystrokes keep coming
+    if (!typingResendTimer) {
         typingChannel.send({ type: 'broadcast', event: 'typing', payload: { user_id: currentUser.id } });
+        typingResendTimer = setInterval(() => {
+            typingChannel?.send({ type: 'broadcast', event: 'typing', payload: { user_id: currentUser.id } });
+        }, 1500);
     }
+
+    // No keystroke for 1.8s = stopped typing
     clearTimeout(typingStopTimer);
-    typingStopTimer = setTimeout(() => {
-        isBroadcastingTyping = false;
-        typingChannel?.send({ type: 'broadcast', event: 'stop_typing', payload: { user_id: currentUser.id } });
-    }, 2000);
+    typingStopTimer = setTimeout(stopTypingBroadcast, 1800);
 }
 
+function stopTypingBroadcast() {
+    clearInterval(typingResendTimer);
+    typingResendTimer = null;
+    clearTimeout(typingStopTimer);
+    typingChannel?.send({ type: 'broadcast', event: 'stop_typing', payload: { user_id: currentUser.id } });
+}
 // ─── FILE HANDLING ────────────────────────────────────────────────────────────
 function onFileSelect(files) {
     Array.from(files).forEach(file => {
@@ -1366,9 +1392,11 @@ function showCtxMenu(e, msgId, isMe) {
     e.preventDefault();
     closeCtxMenu();
 
-const _conv = allConversations.find(c => c.id === activeConvId);
-    const canDelete = isMe && !_conv?.is_general;
-    
+    const row       = document.querySelector(`.msg-row[data-id="${msgId}"]`);
+    const isDeleted = !!row?.querySelector('.msg-deleted');
+    const _conv     = allConversations.find(c => c.id === activeConvId);
+    const canModify = isMe && !_conv?.is_general && !isDeleted; // blocked ONLY in General
+
     const menu = document.createElement('div');
     menu.className = 'ctx-menu';
     menu.id = 'ctx-menu';
@@ -1377,7 +1405,13 @@ const _conv = allConversations.find(c => c.id === activeConvId);
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Copy text
         </div>
-${canDelete ? `
+        ${canModify ? `
+        <div class="ctx-item" onclick="editMessage('${msgId}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit message
+        </div>` : ''}
+        ${canModify ? `
+        <div class="ctx-item danger" onclick="deleteMessage('${msgId}')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Delete for everyone
         </div>` : ''}`;
@@ -1391,7 +1425,6 @@ ${canDelete ? `
     menu.style.left = x + 'px';
     menu.style.top  = y + 'px';
 
-    // Close on outside click
     setTimeout(() => document.addEventListener('click', closeCtxMenu, { once: true }), 0);
 }
 
@@ -1413,6 +1446,8 @@ async function deleteMessage(msgId) {
     closeCtxMenu();
     const _conv = allConversations.find(c => c.id === activeConvId);
     if (_conv?.is_general) { showToast('Messages in General cannot be deleted.', 'error'); return; }
+    const _conv = allConversations.find(c => c.id === activeConvId);
+    if (_conv?.is_general) { showToast('Messages in General cannot be deleted.', 'error'); return; }
     // Soft delete — set deleted flag so other clients see it via Realtime UPDATE
     const { error } = await sb.from('messages')
         .update({ deleted: true, content: null, file_url: null, file_name: null, file_type: null })
@@ -1429,6 +1464,66 @@ async function deleteMessage(msgId) {
     }
 }
 
+
+// ─── EDIT MESSAGE ──────────────────────────────────────────────────────────────
+window.editMessage = async function(msgId) {
+    closeCtxMenu();
+    const conv = allConversations.find(c => c.id === activeConvId);
+    if (conv?.is_general) { showToast('Messages in General cannot be edited.', 'error'); return; }
+
+    const { data: msg, error } = await sb.from('messages')
+        .select('id,content,file_url,file_name,file_type,sender_id,created_at,deleted')
+        .eq('id', msgId).single();
+    if (error || !msg || msg.deleted) { showToast('Could not load message', 'error'); return; }
+
+    const row    = document.querySelector(`.msg-row[data-id="${msgId}"]`);
+    const bubble = row?.querySelector('.bubble');
+    if (!bubble) return;
+
+    bubble.innerHTML = `
+        <textarea id="edit-input-${msgId}" class="edit-textarea" rows="2">${escHtml(msg.content || '')}</textarea>
+        <div class="edit-actions">
+            <button onclick="cancelEditMessage('${msgId}')">Cancel</button>
+            <button onclick="saveEditMessage('${msgId}')">Save</button>
+        </div>`;
+
+    const ta = document.getElementById(`edit-input-${msgId}`);
+    ta.focus();
+    ta.selectionStart = ta.value.length;
+    ta.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEditMessage(msgId); }
+        if (e.key === 'Escape') { e.preventDefault(); cancelEditMessage(msgId); }
+    });
+};
+
+window.cancelEditMessage = async function(msgId) {
+    const { data: msg } = await sb.from('messages')
+        .select('id,content,file_url,file_name,file_type,sender_id,created_at,edited_at')
+        .eq('id', msgId).single();
+    const row    = document.querySelector(`.msg-row[data-id="${msgId}"]`);
+    const bubble = row?.querySelector('.bubble');
+    if (bubble && msg) {
+        bubble.innerHTML = renderBubbleContent(msg) + (msg.edited_at ? '<span class="msg-edited-tag"> (edited)</span>' : '');
+    }
+};
+
+window.saveEditMessage = async function(msgId) {
+    const ta = document.getElementById(`edit-input-${msgId}`);
+    const newContent = ta?.value.trim() || '';
+    if (!newContent) { showToast('Message cannot be empty', 'error'); return; }
+
+    const { data: updated, error } = await sb.from('messages')
+        .update({ content: newContent, edited_at: new Date().toISOString() })
+        .eq('id', msgId).eq('sender_id', currentUser.id)
+        .select('id,content,file_url,file_name,file_type,sender_id,created_at,edited_at')
+        .single();
+    if (error) { showToast('Could not save edit: ' + error.message, 'error'); return; }
+
+    const row    = document.querySelector(`.msg-row[data-id="${msgId}"]`);
+    const bubble = row?.querySelector('.bubble');
+    if (bubble) bubble.innerHTML = renderBubbleContent(updated) + '<span class="msg-edited-tag"> (edited)</span>';
+};
+    
 // ─── CALL MODAL (UI only — WebRTC wiring in phase 2) ─────────────────────────
 
 let _callTimer     = null;
