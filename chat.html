@@ -1201,25 +1201,20 @@ function removePendingFile(i) {
 
 // ─── DM CREATION ──────────────────────────────────────────────────────────────
 async function openOrCreateDM(otherUserId) {
-    // Check if DM already exists
+    // Check if DM already exists locally first (fast path)
     const existing = allConversations.find(c =>
         !c.isGroup &&
         c.conversation_participants?.some(p => p.user_id === otherUserId)
     );
     if (existing) { openConversation(existing.id); return; }
 
-    // Create new DM
-    const { data: conv } = await sb.from('conversations').insert({ type: 'dm' }).select().single();
-    if (!conv) { showToast('Could not create conversation', 'error'); return; }
-
-    await sb.from('conversation_participants').insert([
-        { conversation_id: conv.id, user_id: currentUser.id },
-        { conversation_id: conv.id, user_id: otherUserId }
-    ]);
+    // Atomically find-or-create on the server — prevents duplicate DMs forever
+    const { data: convId, error } = await sb.rpc('find_or_create_dm', { p_other_user_id: otherUserId });
+    if (error || !convId) { showToast('Could not create conversation', 'error'); return; }
 
     await loadConversations();
     renderSidebar();
-    openConversation(conv.id);
+    openConversation(convId);
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
