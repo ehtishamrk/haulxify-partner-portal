@@ -655,11 +655,24 @@ async function loadProfiles() {
 }
 
 async function loadConversations() {
+    // Only fetch conversations this user is ACTUALLY a participant of.
+    // Querying `conversations` directly and trusting RLS alone can leak in
+    // conversations an admin-visibility policy makes visible but the user
+    // isn't really part of — those then render as broken phantom DMs.
+    const { data: myConvIds } = await sb
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', currentUser.id);
+    const convIdList = (myConvIds || []).map(r => r.conversation_id);
+
+    if (!convIdList.length) { allConversations = []; renderSidebar(); return; }
+
     // Get all conversations this user is part of
     const { data: convs } = await sb
         .from('conversations')
 .select(`id, type, name, is_readonly, is_general, created_at, created_by,
     conversation_participants(user_id,last_read_at)`)
+        .in('id', convIdList)
         .order('created_at', { ascending: false });
 
     if (!convs) return;
