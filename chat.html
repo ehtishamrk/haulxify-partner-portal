@@ -232,6 +232,24 @@
 }
 .msg-row.mine .bubble-time { color: rgba(255,255,255,.7); }
 
+/* ── HARD OVERRIDE: force messages to stack vertically no matter what ───── */
+#messages-wrap {
+    display: block !important;
+}
+#messages-wrap .msg-row {
+    display: flex !important;
+    width: 100% !important;
+    float: none !important;
+    position: relative !important;
+    clear: both !important;
+    margin-bottom: 6px !important;
+}
+#messages-wrap .day-divider {
+    display: flex !important;
+    width: 100% !important;
+    clear: both !important;
+}
+    
 /* File/Image in bubble */
 .bubble-img {
     max-width: 240px; max-height: 200px;
