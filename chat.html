@@ -231,24 +231,6 @@
     align-self: flex-end;
 }
 .msg-row.mine .bubble-time { color: rgba(255,255,255,.7); }
-
-/* ── HARD OVERRIDE: force messages to stack vertically no matter what ───── */
-#messages-wrap {
-    display: block !important;
-}
-#messages-wrap .msg-row {
-    display: flex !important;
-    width: 100% !important;
-    float: none !important;
-    position: relative !important;
-    clear: both !important;
-    margin-bottom: 6px !important;
-}
-#messages-wrap .day-divider {
-    display: flex !important;
-    width: 100% !important;
-    clear: both !important;
-}
     
 /* File/Image in bubble */
 .bubble-img {
@@ -1052,8 +1034,8 @@ function renderMessages(msgs) {
                     ${escHtml(sender?.full_name || 'Unknown')}
                     <span class="role-pill-sm" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span>
                 </div>` : ''}
-                <div style="display:flex;align-items:flex-end;gap:4px;${isMe ? 'flex-direction:row-reverse;' : ''}">
-                    <div class="bubble">${msg.deleted ? '<span class="msg-deleted"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Message deleted</span>' : renderBubbleContent(msg) + (msg.edited_at ? '<span class="msg-edited-tag"> (edited)</span>' : '')}
+<div style="display:flex;align-items:flex-end;gap:4px;${isMe ? 'flex-direction:row-reverse;' : ''}">
+                    <div class="bubble">${msg.deleted ? '<span class="msg-deleted"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Message deleted</span>' : renderBubbleContent(msg) + (msg.edited_at ? '<span class="msg-edited-tag"> (edited)</span>' : '')}</div>
                     <span class="bubble-time">${timeStr}</span>
                 </div>
             </div>
