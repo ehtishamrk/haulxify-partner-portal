@@ -712,7 +712,7 @@ async function loadInitialUnreadCount() {
 window.popupInitiateCall = function() {
     const conv = _popupConvs.find(c => c.id === _popupConvId);
     if (!conv) return;
-    if (typeof initiateCall === 'function') { initiateCall(); return; }
+    if (typeof initiateCall === 'function') { initiateCall(_popupConvId); return; }
     const initials = popupInitials(conv.displayName);
     const overlay = document.createElement('div');
     overlay.id = 'popup-call-overlay';
