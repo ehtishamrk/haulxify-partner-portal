@@ -1537,13 +1537,16 @@ window.saveEditMessage = async function(msgId) {
     if (bubble) bubble.innerHTML = renderBubbleContent(updated) + '<span class="msg-edited-tag"> (edited)</span>';
 };
     
-// ─── CALL MODAL (UI only — WebRTC wiring in phase 2) ─────────────────────────
+// ─── CALL MODAL UI ────────────────────────────────────────────────────────────
+// WebRTC is handled by webrtc-calls.js (loaded after this script).
+// The stub functions below only run if webrtc-calls.js hasn't loaded yet.
 
 let _callTimer     = null;
 let _callSeconds   = 0;
 let _callMuted     = false;
 
-function initiateCall() {
+function initiateCall(convId) {
+    if (window._rtcLoaded) return; // webrtc-calls.js is handling this
     const conv = allConversations.find(c => c.id === activeConvId);
     if (!conv) return;
     showCallModal({
