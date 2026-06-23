@@ -382,7 +382,8 @@ window.toggleMute     = window.rtcToggleMute;
 window.closeCallModal = window.rtcHangup;
 
 // ── Boot: wait for Supabase auth, then start listening for incoming calls ──────
-function _boot() {
+window._rtcLoaded = true;
+    function _boot() {
     if (window.currentUser && window.sb) {
         _startNotifyListener();
         return;
