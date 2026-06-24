@@ -874,7 +874,7 @@ window.popupSaveEdit = async function(msgId) {
 
 function subscribePopupTyping(convId) {
     if (_popupTypingCh) { sb.removeChannel(_popupTypingCh); _popupTypingCh = null; }
-    _popupTypingCh = sb.channel('popup-typing:' + convId, { config: { broadcast: { self: false } } })
+    _popupTypingCh = sb.channel('typing:' + convId, { config: { broadcast: { self: false } } })
         .on('broadcast', { event: 'typing' }, (payload) => {
             if (payload.payload?.user_id === currentUser.id) return;
             _showPopupTyping();
