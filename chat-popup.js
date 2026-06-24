@@ -19,6 +19,9 @@ let _popupUnread     = {};
 let _popupOpen       = false;
 let _popupView       = 'list'; // 'list' | 'chat'
 let _popupPending    = [];
+let _popupTypingCh    = null;
+let _popupTypingTimer = null;
+let _popupTypingResend = null;
 
 // ── Inject HTML ───────────────────────────────────────────────────────────────
 function injectPopup() {
@@ -265,7 +268,22 @@ const style = document.createElement('style');
         cursor: pointer; color: #fff; flex-shrink: 0; transition: filter .12s;
     }
     .popup-send-btn:hover { filter: brightness(1.12); }
-    .popup-send-btn:disabled { opacity: .45; }
+.popup-send-btn:disabled { opacity: .45; }
+    .popup-typing-row { display:flex; align-items:flex-end; padding: 2px 0; }
+    .popup-typing-bubble {
+        padding: 10px 14px; border-radius: 20px; border-bottom-left-radius: 4px;
+        background: var(--c-raised); display:flex; gap:4px; align-items:center;
+    }
+    .popup-typing-dot {
+        width:7px; height:7px; border-radius:50%;
+        background: var(--c-text-3); animation: popupDotBounce 1.2s infinite;
+    }
+    .popup-typing-dot:nth-child(2) { animation-delay:.2s; }
+    .popup-typing-dot:nth-child(3) { animation-delay:.4s; }
+    @keyframes popupDotBounce {
+        0%,80%,100% { transform:translateY(0); opacity:.5; }
+        40% { transform:translateY(-5px); opacity:1; }
+    }
     `;
     document.head.appendChild(style);
 
@@ -351,6 +369,8 @@ window.popupShowList = function() {
     _popupView = 'list';
     _popupConvId = null;
     if (_popupChannel) { sb.removeChannel(_popupChannel); _popupChannel = null; }
+    if (_popupTypingCh) { sb.removeChannel(_popupTypingCh); _popupTypingCh = null; }
+    clearInterval(_popupTypingResend); _popupTypingResend = null;
 
     // ── List header ──
     document.getElementById('popup-header').innerHTML = `
@@ -500,7 +520,7 @@ window.popupOpenConv = async function(convId) {
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                 </button>
                 <textarea class="popup-textarea" id="popup-textarea" placeholder="Type a message…" rows="1"
-                    onkeydown="popupKeydown(event)" oninput="popupAutoGrow(this)"></textarea>
+                    onkeydown="popupKeydown(event)" oninput="popupAutoGrow(this);popupOnTyping()"></textarea>
                 <button class="popup-send-btn" id="popup-send-btn" onclick="popupSend()">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
@@ -515,7 +535,8 @@ window.popupOpenConv = async function(convId) {
         .limit(60);
 
     popupRenderMessages(msgs || []);
-    popupSubscribe(convId);
+popupSubscribe(convId);
+    subscribePopupTyping(convId);
     document.getElementById('popup-textarea')?.focus();
 };
 
@@ -847,6 +868,59 @@ window.popupSaveEdit = async function(msgId) {
     const row    = document.querySelector(`.popup-msg-row[data-id="${msgId}"]`);
     const bubble = row?.querySelector('.popup-bubble');
     if (bubble) bubble.innerHTML = escHtml(updated.content || '') + (updated.edited_at ? ' <span class="popup-edited-tag">(edited)</span>' : '');
+};
+
+// ── Popup typing indicator ────────────────────────────────────────────────────
+
+function subscribePopupTyping(convId) {
+    if (_popupTypingCh) { sb.removeChannel(_popupTypingCh); _popupTypingCh = null; }
+    _popupTypingCh = sb.channel('popup-typing:' + convId, { config: { broadcast: { self: false } } })
+        .on('broadcast', { event: 'typing' }, (payload) => {
+            if (payload.payload?.user_id === currentUser.id) return;
+            _showPopupTyping();
+        })
+        .on('broadcast', { event: 'stop_typing' }, () => {
+            _hidePopupTyping();
+        })
+        .subscribe();
+}
+
+function _showPopupTyping() {
+    clearTimeout(_popupTypingTimer);
+    const wrap = document.getElementById('popup-messages');
+    if (!wrap) return;
+    if (!document.getElementById('popup-typing-row')) {
+        wrap.insertAdjacentHTML('beforeend', `
+            <div id="popup-typing-row" class="popup-typing-row">
+                <div class="popup-typing-bubble">
+                    <div class="popup-typing-dot"></div>
+                    <div class="popup-typing-dot"></div>
+                    <div class="popup-typing-dot"></div>
+                </div>
+            </div>`);
+        wrap.scrollTop = wrap.scrollHeight;
+    }
+    _popupTypingTimer = setTimeout(_hidePopupTyping, 4000);
+}
+
+function _hidePopupTyping() {
+    clearTimeout(_popupTypingTimer);
+    document.getElementById('popup-typing-row')?.remove();
+}
+
+window.popupOnTyping = function() {
+    if (!_popupConvId || !_popupTypingCh) return;
+    if (!_popupTypingResend) {
+        _popupTypingCh.send({ type: 'broadcast', event: 'typing', payload: { user_id: currentUser.id } });
+        _popupTypingResend = setInterval(() => {
+            _popupTypingCh?.send({ type: 'broadcast', event: 'typing', payload: { user_id: currentUser.id } });
+        }, 1500);
+    }
+    clearTimeout(_popupTypingTimer);
+    _popupTypingTimer = setTimeout(() => {
+        clearInterval(_popupTypingResend); _popupTypingResend = null;
+        _popupTypingCh?.send({ type: 'broadcast', event: 'stop_typing', payload: { user_id: currentUser.id } });
+    }, 1800);
 };
     
 // ── Boot after auth is ready ──────────────────────────────────────────────────
