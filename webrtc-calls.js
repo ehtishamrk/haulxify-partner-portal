@@ -256,8 +256,8 @@ function _startNotifyListener() {
 
 // Called by: chat.html call button, popup call button
 window.initiateCall = async function (convId) {
-    const cid = convId || window.activeConvId;
-    if (!cid || !window.currentUser || !window.sb) return;
+    const cid = convId || activeConvId;
+    if (!cid || !currentUser || !sb) return;
     if (_callState !== 'idle') { _toast('Already in a call.', 'error'); return; }
 
     // Get all participants except self
@@ -274,7 +274,7 @@ window.initiateCall = async function (convId) {
     const calleeId = parts[0].user_id;
 
     // Resolve callee name — check in-memory allProfiles first, then DB
-    let callee = (window.allProfiles || []).find(p => p.id === calleeId);
+    let callee = (allProfiles || []).find(p => p.id === calleeId);
     if (!callee) {
         const { data } = await sb.from('profiles').select('full_name,avatar_url').eq('id', calleeId).single();
         callee = data;
@@ -306,8 +306,8 @@ window.initiateCall = async function (convId) {
         });
 
         // Ring the callee via their personal notification channel
-        const myName   = window.currentProfile?.full_name || currentUser.user_metadata?.full_name || 'Unknown';
-        const myAvatar = window.currentProfile?.avatar_url || null;
+        const myName   = currentProfile?.full_name || currentUser.user_metadata?.full_name || 'Unknown';
+        const myAvatar = currentProfile?.avatar_url || null;
 
         sb.channel('rtc-notify:' + calleeId).send({
             type: 'broadcast', event: 'rtc-ring', payload: {
@@ -384,7 +384,7 @@ window.closeCallModal = window.rtcHangup;
 // ── Boot: wait for Supabase auth, then start listening for incoming calls ──────
 window._rtcLoaded = true;
     function _boot() {
-    if (window.currentUser && window.sb) {
+    if (currentUser && sb) {
         _startNotifyListener();
         return;
     }
