@@ -19,9 +19,10 @@ let _popupUnread     = {};
 let _popupOpen       = false;
 let _popupView       = 'list'; // 'list' | 'chat'
 let _popupPending    = [];
-let _popupTypingCh    = null;
-let _popupTypingTimer = null;
-let _popupTypingResend = null;
+let _popupTypingCh        = null;
+let _popupTypingTimer     = null;   // receiver-side: auto-hide bubble if stop_typing is lost
+let _popupTypingStopTimer = null;   // sender-side: detect when keystrokes stop
+let _popupTypingResend    = null;   // sender-side: keep re-broadcasting while typing
 
 // ── Inject HTML ───────────────────────────────────────────────────────────────
 function injectPopup() {
@@ -383,8 +384,11 @@ window.popupShowList = function() {
     _popupView = 'list';
     _popupConvId = null;
     if (_popupChannel) { sb.removeChannel(_popupChannel); _popupChannel = null; }
-    if (_popupTypingCh) { sb.removeChannel(_popupTypingCh); _popupTypingCh = null; }
-    clearInterval(_popupTypingResend); _popupTypingResend = null;
+if (_popupTypingCh) {
+        _popupStopTyping(); // broadcast stop before removing channel
+        sb.removeChannel(_popupTypingCh); _popupTypingCh = null;
+    }
+    clearTimeout(_popupTypingStopTimer); _popupTypingStopTimer = null;
 
     // ── List header ──
     document.getElementById('popup-header').innerHTML = `
@@ -652,7 +656,8 @@ window.popupSend = async function() {
     .insert({ conversation_id: _popupConvId, sender_id: currentUser.id, content });
 if (insertErr) throw new Error(insertErr.message);
         }
-        if (input) { input.value = ''; input.style.height = ''; }
+if (input) { input.value = ''; input.style.height = ''; }
+        _popupStopTyping(); // clear typing state after send
     } catch(err) { showToast('Send failed: ' + err.message, 'error'); }
     finally { if (btn) btn.disabled = false; }
 };
@@ -930,12 +935,16 @@ window.popupOnTyping = function() {
             _popupTypingCh?.send({ type: 'broadcast', event: 'typing', payload: { user_id: currentUser.id } });
         }, 1500);
     }
-    clearTimeout(_popupTypingTimer);
-    _popupTypingTimer = setTimeout(() => {
-        clearInterval(_popupTypingResend); _popupTypingResend = null;
-        _popupTypingCh?.send({ type: 'broadcast', event: 'stop_typing', payload: { user_id: currentUser.id } });
-    }, 1800);
+    // Use _popupTypingStopTimer (sender-side), never touch _popupTypingTimer (receiver-side)
+    clearTimeout(_popupTypingStopTimer);
+    _popupTypingStopTimer = setTimeout(_popupStopTyping, 1800);
 };
+
+function _popupStopTyping() {
+    clearInterval(_popupTypingResend); _popupTypingResend = null;
+    clearTimeout(_popupTypingStopTimer); _popupTypingStopTimer = null;
+    _popupTypingCh?.send({ type: 'broadcast', event: 'stop_typing', payload: { user_id: currentUser.id } });
+}
     
 // ── Boot after auth is ready ──────────────────────────────────────────────────
 function waitForAuth() {
