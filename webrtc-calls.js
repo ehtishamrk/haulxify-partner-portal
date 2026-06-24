@@ -274,7 +274,7 @@ window.initiateCall = async function (convId) {
     const calleeId = parts[0].user_id;
 
     // Resolve callee name — check in-memory allProfiles first, then DB
-    let callee = (allProfiles || []).find(p => p.id === calleeId);
+    let callee = (window.allProfiles || []).find(p => p.id === calleeId);
     if (!callee) {
         const { data } = await sb.from('profiles').select('full_name,avatar_url').eq('id', calleeId).single();
         callee = data;
