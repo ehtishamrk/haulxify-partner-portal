@@ -27,28 +27,39 @@ let _popupTypingResend = null;
 function injectPopup() {
 const style = document.createElement('style');
     style.textContent = `
-    /* ── Float button ──────────────────────────────────────────────── */
+/* ── Float button ──────────────────────────────────────────────── */
     #chat-popup-btn {
-        position: fixed; bottom: 24px; right: 24px; z-index: 8000;
-        width: 56px; height: 56px; border-radius: 50%;
-        background: var(--c-accent); color: #fff;
-        border: none; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 12px rgba(0,0,0,.3);
-        transition: transform .15s, box-shadow .15s;
+        position: fixed; bottom: 20px; right: 24px; z-index: 8000;
+        display: flex; align-items: center; gap: 8px;
+        height: 44px; padding: 0 14px 0 10px;
+        border-radius: 10px;
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        color: var(--c-text);
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.10);
+        transition: transform .15s, box-shadow .15s, background .15s, color .15s;
     }
-    #chat-popup-btn:hover { transform: scale(1.06); box-shadow: 0 4px 20px rgba(0,0,0,.35); }
+    #chat-popup-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.16), 0 12px 32px rgba(0,0,0,.14); }
+    #chat-popup-btn.active { background: var(--c-accent); border-color: var(--c-accent); color: #fff; }
+    #chat-popup-icon {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: var(--c-accent-g); color: var(--c-accent);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; transition: background .15s, color .15s;
+    }
+    #chat-popup-btn.active #chat-popup-icon { background: rgba(255,255,255,.25); color: #fff; }
+    #chat-popup-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
     #chat-popup-unread {
-        position: absolute; top: -3px; right: -3px;
         background: #e3293e; color: #fff; font-size: 10px; font-weight: 700;
-        border-radius: 10px; padding: 1px 5px; min-width: 16px;
-        text-align: center; border: 2px solid white; display: none;
+        border-radius: 9px; padding: 1px 6px; min-width: 16px;
+        text-align: center; display: none;
     }
 
     /* ── Panel ─────────────────────────────────────────────────────── */
     #chat-popup-panel {
-        position: fixed; bottom: 90px; right: 24px; z-index: 8000;
-        width: 328px; max-height: 520px;
+        position: fixed; bottom: 74px; right: 24px; z-index: 8000;
+        width: 328px; height: 480px;
         background: var(--c-surface);
         border-radius: 16px;
         box-shadow: 0 2px 8px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.22);
@@ -289,10 +300,13 @@ const style = document.createElement('style');
 
     const wrap = document.createElement('div');
     wrap.innerHTML = `
-    <div id="chat-popup-btn" onclick="toggleChatPopup()">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
+<div id="chat-popup-btn" onclick="toggleChatPopup()">
+        <span id="chat-popup-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+        </span>
+        <span id="chat-popup-label">Chats</span>
         <span id="chat-popup-unread"></span>
     </div>
     <div id="chat-popup-panel">
@@ -309,6 +323,7 @@ const style = document.createElement('style');
 window.toggleChatPopup = function() {
     _popupOpen = !_popupOpen;
     const panel = document.getElementById('chat-popup-panel');
+    document.getElementById('chat-popup-btn').classList.toggle('active', _popupOpen);
     if (_popupOpen) {
         panel.classList.add('open');
         if (!_popupConvs.length) initPopupData();
@@ -316,7 +331,6 @@ window.toggleChatPopup = function() {
     } else {
         panel.classList.remove('open');
     }
-};
 
 // ── Load Data ─────────────────────────────────────────────────────────────────
 async function initPopupData() {
