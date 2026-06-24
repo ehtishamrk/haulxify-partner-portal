@@ -331,7 +331,7 @@ window.toggleChatPopup = function() {
     } else {
         panel.classList.remove('open');
     }
-
+};
 // ── Load Data ─────────────────────────────────────────────────────────────────
 async function initPopupData() {
     if (!currentUser) return;
