@@ -181,6 +181,13 @@ let adminOnlineUsers = new Set();
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     await loadNav();
+
+    // Register presence hook BEFORE checkAuth (which calls _joinPresence)
+    window._onPresenceSync = (state) => {
+        adminOnlineUsers = new Set(Object.values(state).flat().map(p => p.user_id));
+        renderUsers();
+    };
+
     const profile = await checkAuth(['super_admin', 'admin']);
     if (!profile) return;
 
@@ -211,18 +218,6 @@ sb.channel('admin-users-realtime')
         }, () => {
             loadUsers();
             loadStats();
-        })
-        .subscribe();
-
-    // Real-time presence — who is currently logged in
-    const adminPresenceCh = sb.channel('portal-presence');
-    adminPresenceCh
-        .on('presence', { event: 'sync' }, () => {
-            const state = adminPresenceCh.presenceState();
-            adminOnlineUsers = new Set(
-                Object.values(state).flat().map(p => p.user_id)
-            );
-            renderUsers();
         })
         .subscribe();
 });
