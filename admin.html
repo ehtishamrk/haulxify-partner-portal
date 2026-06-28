@@ -283,8 +283,8 @@ wrap.innerHTML = `
             <th>Actions</th>
         </tr></thead>
 ${(() => {
-            const visibleUsers = currentProfile.role === 'admin'
-                ? allUsers.filter(u => u.approved_by === currentProfile.id)
+const visibleUsers = currentProfile.role === 'admin'
+                ? allUsers.filter(u => (u.company || 'AIMS Logistics') === 'AIMS Logistics')
                 : allUsers;
             return visibleUsers.map(u => {
             const rm = ROLE_META[u.role] || { label: u.role, color: '#6b7280' };
