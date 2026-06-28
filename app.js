@@ -67,8 +67,9 @@ updateNotifBadge();
             _activeSessionToken = expectedToken;
         }
 
-        // Tab-close auto logout
+// Tab-close auto logout
         _startHeartbeat();
+        _joinPresence();
 
 // populate nav avatar + dropdown header
 setAvatar(document.getElementById('nav-avatar'), profile.full_name, profile.avatar_url);
@@ -197,6 +198,7 @@ async function _handleSessionInvalidated() {
 
 async function logout() {
     _stopHeartbeat();
+    if (_presenceChannel) { sb.removeChannel(_presenceChannel); _presenceChannel = null; }
     await sb.auth.signOut();
     window.location.href = 'index.html';
 }
@@ -291,6 +293,11 @@ async function fetchLeads(filters = {}) {
     // status_updaters only see leads assigned to them
     if (window._statusUpdaterFilter) {
         q = q.eq('assigned_to', window._statusUpdaterFilter);
+    }
+
+    // sales_agents only see leads they created
+    if (currentProfile?.role === 'sales_agent') {
+        q = q.eq('created_by', currentProfile.id);
     }
 
     if (filters.status && filters.status !== 'all')
@@ -448,7 +455,7 @@ async function updateProfile(id, updates) {
     if (error) throw error;
 }
 
-async function createPortalUser(email, fullName, role) {
+async function createPortalUser(email, fullName, role, company = 'AIMS Logistics') {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) throw new Error('No active session.');
 
@@ -461,7 +468,7 @@ async function createPortalUser(email, fullName, role) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ email, fullName, role, redirectTo })
+        body: JSON.stringify({ email, fullName, role, company, redirectTo })
     });
 
     const text = await res.text();
@@ -553,6 +560,21 @@ function _startHeartbeat() {
 function _stopHeartbeat() {
     clearInterval(_heartbeatTimer);
     localStorage.removeItem(HEARTBEAT_KEY);
+}
+
+// ─── PORTAL PRESENCE (real-time online status) ────────────────────────────────
+let _presenceChannel = null;
+
+function _joinPresence() {
+    if (!currentUser || _presenceChannel) return;
+    _presenceChannel = sb.channel('portal-presence', {
+        config: { presence: { key: currentUser.id } }
+    });
+    _presenceChannel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            await _presenceChannel.track({ user_id: currentUser.id });
+        }
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
