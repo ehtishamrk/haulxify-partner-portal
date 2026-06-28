@@ -138,7 +138,7 @@
                         <span>A <strong style="color:var(--c-text);">password setup link</strong> will be emailed to the user. They choose their own password when they click it.</span>
                     </div>
                 </div>
-                <div class="form-group">
+<div class="form-group">
                     <label>Role <span class="req">*</span></label>
 <select id="u-role" class="form-control" id="u-role">
     <option value="">— Select role —</option>
@@ -147,6 +147,13 @@
     <option value="admin">Admin — can assign leads &amp; manage employees</option>
     <option value="super_admin">Super Admin — full access</option>
 </select>
+                </div>
+                <div class="form-group" id="u-company-group">
+                    <label>Company <span class="req">*</span></label>
+                    <select id="u-company" class="form-control">
+                        <option value="AIMS Logistics">AIMS Logistics</option>
+                        <option value="HAULXIFY">HAULXIFY</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -163,12 +170,13 @@
 <script src="chat-popup.js"></script>
     <script src="webrtc-calls.js"></script>
 <script>
-let allUsers        = [];
-let allAdminLeads   = [];
-let allPending      = [];
-let editingUserId   = null;
-let activeTab       = 'users';
-let assigningLeadId = null;
+let allUsers         = [];
+let allAdminLeads    = [];
+let allPending       = [];
+let editingUserId    = null;
+let activeTab        = 'users';
+let assigningLeadId  = null;
+let adminOnlineUsers = new Set();
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -197,12 +205,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all(tasks);
 
     // ── Real-time: table auto-refreshes when any profile row changes ──────────
-    sb.channel('admin-users-realtime')
+sb.channel('admin-users-realtime')
         .on('postgres_changes', {
             event: '*', schema: 'public', table: 'profiles'
         }, () => {
             loadUsers();
             loadStats();
+        })
+        .subscribe();
+
+    // Real-time presence — who is currently logged in
+    const adminPresenceCh = sb.channel('portal-presence');
+    adminPresenceCh
+        .on('presence', { event: 'sync' }, () => {
+            const state = adminPresenceCh.presenceState();
+            adminOnlineUsers = new Set(
+                Object.values(state).flat().map(p => p.user_id)
+            );
+            renderUsers();
         })
         .subscribe();
 });
@@ -255,24 +275,25 @@ function renderUsers() {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No users yet</div></div>`;
         return;
     }
-    wrap.innerHTML = `
+wrap.innerHTML = `
     <div class="users-table-wrap">
     <table class="users-table">
         <thead><tr>
             <th>User</th>
+            <th>Company</th>
             <th>Role</th>
-            <th>Status</th>
+            <th>Account</th>
+            <th>Live</th>
             <th>Added</th>
             <th>Actions</th>
         </tr></thead>
-        <tbody>
 ${(() => {
             const visibleUsers = currentProfile.role === 'admin'
                 ? allUsers.filter(u => u.approved_by === currentProfile.id)
                 : allUsers;
             return visibleUsers.map(u => {
             const rm = ROLE_META[u.role] || { label: u.role, color: '#6b7280' };
-            return `<tr>
+return `<tr>
                 <td>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <div class="avatar">${(u.full_name||'?')[0].toUpperCase()}</div>
@@ -282,6 +303,7 @@ ${(() => {
                         </div>
                     </div>
                 </td>
+                <td style="font-size:12px;color:var(--c-text-2);">${escHtml(u.company || 'AIMS Logistics')}</td>
                 <td><span class="role-pill" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span></td>
 <td>
                     <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:${u.is_active ? 'var(--c-success)' : '#f59e0b'};">
@@ -289,6 +311,10 @@ ${(() => {
                         ${u.is_active ? 'Active' : '❄ Frozen'}
                     </span>
                 </td>
+                <td>${adminOnlineUsers.has(u.id)
+                    ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--c-success);"><span style="width:7px;height:7px;border-radius:50%;background:var(--c-success);display:inline-block;"></span>Live</span>`
+                    : `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--c-text-3);"><span style="width:7px;height:7px;border-radius:50%;background:var(--c-text-3);display:inline-block;"></span>Offline</span>`
+                }</td>
                 <td style="color:var(--c-text-2);">${formatDate(u.created_at)}</td>
                 <td>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -321,6 +347,8 @@ function openUserModal() {
 document.getElementById('u-name').value     = '';
     document.getElementById('u-email').value    = '';
     document.getElementById('u-role').value     = '';
+document.getElementById('u-company').value  = 'AIMS Logistics';
+    document.getElementById('u-company-group').style.display = '';
     document.getElementById('u-email').disabled = false;
     document.getElementById('u-invite-notice').style.display = '';
     document.getElementById('save-user-btn').textContent = 'Send Invite';
@@ -336,7 +364,9 @@ function openEditUserModal(userId) {
     document.getElementById('u-name').value   = user.full_name;
     document.getElementById('u-email').value  = user.email;
     document.getElementById('u-email').disabled = true;
-    document.getElementById('u-role').value   = user.role;
+document.getElementById('u-role').value    = user.role;
+    document.getElementById('u-company').value = user.company || 'AIMS Logistics';
+    document.getElementById('u-company-group').style.display = '';
 document.getElementById('u-invite-notice').style.display = 'none';
     document.getElementById('save-user-btn').textContent = 'Save Changes';
     document.getElementById('user-modal').classList.remove('hidden');
@@ -354,9 +384,10 @@ function onUserModalOverlay(e) {
 }
 
 async function saveUser() {
-const name   = document.getElementById('u-name').value.trim();
-    const email  = document.getElementById('u-email').value.trim();
-    const role   = document.getElementById('u-role').value;
+const name    = document.getElementById('u-name').value.trim();
+    const email   = document.getElementById('u-email').value.trim();
+    const role    = document.getElementById('u-role').value;
+    const company = document.getElementById('u-company').value || 'AIMS Logistics';
     // New users are always active. Existing users keep their current status.
     const active = editingUserId
         ? (allUsers.find(u => u.id === editingUserId)?.is_active ?? true)
@@ -373,15 +404,14 @@ const name   = document.getElementById('u-name').value.trim();
 
     try {
         if (editingUserId) {
-            await updateProfile(editingUserId, { full_name: name, role, is_active: active });
+            await updateProfile(editingUserId, { full_name: name, role, company, is_active: active });
             showToast('User updated.', 'success');
         } else {
 await createPortalUser(email, name, role);
-            if (!active) {
-                const fresh = await fetchProfiles();
-                const created = fresh.find(u => u.email === email);
-                if (created) await updateProfile(created.id, { is_active: false });
-            }
+            // Company must be set separately (auth trigger doesn't set it)
+            const fresh = await fetchProfiles();
+            const created = fresh.find(u => u.email === email);
+            if (created) await updateProfile(created.id, { company, is_active: active });
             showToast(`Invite sent to ${email} — they'll receive a link to set their password.`, 'success');
         }
         closeUserModal();
@@ -546,8 +576,10 @@ function openAddEmployeeModal() {
     document.getElementById('u-name').value     = '';
     document.getElementById('u-email').value    = '';
     document.getElementById('u-email').disabled = false;
-    document.getElementById('u-invite-notice').style.display = 'none';
+document.getElementById('u-invite-notice').style.display = 'none';
     document.getElementById('u-role').value     = 'status_updater';
+    document.getElementById('u-company').value  = 'AIMS Logistics';
+    document.getElementById('u-company-group').style.display = 'none';
     document.getElementById('save-user-btn').textContent = 'Submit for Approval';
 
     // Show a notice that superadmin must approve first
@@ -604,10 +636,11 @@ window.saveUser = async function() {
 
         // Mark as pending in profiles
         const { data: profiles } = await sb.from('profiles').select('id').eq('email', email);
-        if (profiles && profiles[0]) {
+if (profiles && profiles[0]) {
             await sb.from('profiles').update({
                 is_approved: false,
                 is_active: false,
+                company: 'AIMS Logistics',
                 approved_by: currentProfile.id
             }).eq('id', profiles[0].id);
         }
@@ -660,8 +693,8 @@ function renderPending() {
     wrap.innerHTML = `
     <div class="users-table-wrap">
     <table class="users-table">
-        <thead><tr>
-            <th>Employee</th><th>Role</th><th>Added By</th><th>Submitted</th><th>Actions</th>
+<thead><tr>
+            <th>Employee</th><th>Company</th><th>Role</th><th>Added By</th><th>Submitted</th><th>Actions</th>
         </tr></thead>
         <tbody>
         ${allPending.map(u => {
@@ -676,6 +709,8 @@ function renderPending() {
                         </div>
                     </div>
                 </td>
+                <td><span class="role-pill" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span></td>
+<td style="font-size:12px;color:var(--c-text-2);">${escHtml(u.company || 'AIMS Logistics')}</td>
                 <td><span class="role-pill" style="background:${rm.color}22;color:${rm.color};border:1px solid ${rm.color}44;">${rm.label}</span></td>
                 <td style="color:var(--c-text-2);">${escHtml(u.approver?.full_name || '—')}</td>
                 <td style="color:var(--c-text-2);">${formatDate(u.created_at)}</td>
