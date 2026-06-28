@@ -319,8 +319,9 @@ function renderLeads() {
         return;
     }
 
-    const canEdit   = currentProfile.role !== 'status_updater';
+const canEdit   = currentProfile.role !== 'status_updater';
     const isAdmin   = currentProfile.role === 'super_admin';
+    const showAgent = currentProfile.role === 'super_admin'; // only super_admin sees the agent name
 
     wrap.innerHTML = `
     <div class="leads-table-wrap">
@@ -330,8 +331,8 @@ function renderLeads() {
             <th>Phone</th>
             <th>Drivers</th>
             <th>Route</th>
-            <th>Status</th>
-<th>Agent</th>
+<th>Status</th>
+            ${showAgent ? '<th>Agent</th>' : ''}
             <th>Lead Date</th>
             <th>Added</th>
             <th></th>
@@ -350,8 +351,8 @@ function renderLeads() {
             <td class="text-muted">${escHtml(l.phone || '—')}</td>
             <td class="text-muted">${l.drivers_required || '—'}</td>
             <td class="text-muted">${escHtml(l.route_type || '—')}</td>
-            <td>${statusBadge(l.status)}</td>
-<td class="text-muted">${escHtml(l.agent?.full_name || '—')}</td>
+<td>${statusBadge(l.status)}</td>
+            ${showAgent ? `<td class="text-muted">${escHtml(l.agent?.full_name || '—')}</td>` : ''}
             <td class="text-muted">${l.lead_date ? formatDate(l.lead_date) : '—'}</td>
             <td class="text-muted">${formatDate(l.created_at)}</td>
             <td onclick="event.stopPropagation()">
