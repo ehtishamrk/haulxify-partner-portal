@@ -60,10 +60,15 @@
                         <label class="profile-label">Phone Number</label>
                         <input class="profile-input" type="tel" id="field-phone" placeholder="+1 (555) 000-0000">
                     </div>
-                    <div class="profile-field">
+<div class="profile-field">
                         <label class="profile-label">Email Address</label>
                         <input class="profile-input" type="email" id="field-email" placeholder="you@example.com" disabled>
                         <span class="profile-field-hint">Email cannot be changed here</span>
+                    </div>
+                    <div class="profile-field">
+                        <label class="profile-label">Company</label>
+                        <input class="profile-input" type="text" id="field-company" disabled>
+                        <span class="profile-field-hint">Contact your Super Admin to change</span>
                     </div>
                 </div>
                 <div class="profile-section-footer">
@@ -165,8 +170,9 @@
     document.getElementById('field-email').value           = profile.email           || session?.user?.email || '';
     document.getElementById('field-dob').value             = profile.dob             || '';
     document.getElementById('field-phone').value           = profile.phone           || '';
-    document.getElementById('field-emergency-name').value  = profile.emergency_name  || '';
+document.getElementById('field-emergency-name').value  = profile.emergency_name  || '';
     document.getElementById('field-emergency-phone').value = profile.emergency_phone || '';
+    document.getElementById('field-company').value         = profile.company         || 'AIMS Logistics';
 })();
 
 function showToast(msg, type = 'success') {
