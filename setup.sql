@@ -12,10 +12,11 @@ role        TEXT NOT NULL DEFAULT 'sales_agent'
                 CHECK (role IN ('super_admin', 'admin', 'sales_agent', 'status_updater')),
 approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
 is_approved BOOLEAN NOT NULL DEFAULT true,
-    is_active   BOOLEAN NOT NULL DEFAULT true,
+is_active   BOOLEAN NOT NULL DEFAULT true,
+    company     TEXT NOT NULL DEFAULT 'AIMS Logistics'
+                    CHECK (company IN ('HAULXIFY', 'AIMS Logistics')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    -- In the profiles CREATE TABLE block, add:
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 session_token TEXT
 );
 
@@ -110,7 +111,14 @@ CREATE POLICY "profiles_delete_admin" ON public.profiles
 
 -- LEADS policies
 CREATE POLICY "leads_select" ON public.leads
-    FOR SELECT TO authenticated USING (true);
+    FOR SELECT TO authenticated USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role IN ('super_admin', 'admin', 'status_updater')
+        )
+        OR created_by = auth.uid()
+    );
 
 CREATE POLICY "leads_insert" ON public.leads
     FOR INSERT TO authenticated
