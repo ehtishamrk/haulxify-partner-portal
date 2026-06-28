@@ -39,8 +39,11 @@
         <span id="tab-label-users">User Management</span>
     </button>
     <button class="section-tab" onclick="switchTab('leads')" id="tab-btn-leads">All Leads</button>
-    <button class="section-tab" onclick="switchTab('pending')" id="tab-btn-pending" style="display:none;">
+<button class="section-tab" onclick="switchTab('pending')" id="tab-btn-pending" style="display:none;">
         Pending Approvals <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;margin-left:4px;"></span>
+    </button>
+    <button class="section-tab" onclick="switchTab('accounts')" id="tab-btn-accounts">
+        💰 Accounts
     </button>
 </div>
 
@@ -73,6 +76,22 @@
         <div id="admin-leads-wrap"><div class="loading-wrap"><div class="spinner"></div></div></div>
 </div>
 
+<!-- ──────────────────── ACCOUNTS TAB ────────────────────────────────── -->
+    <div id="tab-accounts" style="display:none;">
+        <div class="page-header" style="margin-bottom:18px;">
+            <div>
+                <h2 style="font-size:19px;font-weight:700;">Accounts</h2>
+                <p style="font-size:13px;color:var(--c-text-2);margin-top:3px;">Revenue tracking and collection management</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadAccounts()">↺ Refresh</button>
+        </div>
+        <div id="accounts-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;"></div>
+        <div>
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--c-text-1);">Hired Leads — Collection Tracker</h3>
+            <div id="accounts-table-wrap"><div class="loading-wrap"><div class="spinner"></div> Loading…</div></div>
+        </div>
+    </div>
+    
     <!-- ──────────────────── PENDING TAB ──────────────────────────────────── -->
     <div id="tab-pending" style="display:none;">
         <div class="page-header" style="margin-bottom:18px;">
@@ -86,6 +105,33 @@
 
 </div>
 
+    <!-- ═══ COLLECT MODAL ═════════════════════════════════════════════════════ -->
+<div id="collect-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeCollectModal()">
+    <div class="modal-panel" style="max-width:380px;" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Update Collection</h2>
+            <button class="modal-close" onclick="closeCollectModal()">✕</button>
+        </div>
+        <div class="modal-body" style="max-height:none;overflow:visible;">
+            <div class="form-section">
+                <div style="margin-bottom:16px;padding:12px;background:var(--c-bg-2);border-radius:8px;">
+                    <span style="font-size:13px;color:var(--c-text-2);">Expected revenue for this lead:</span>
+                    <div id="collect-expected" style="font-size:20px;font-weight:700;color:var(--c-primary);margin-top:4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Amount Collected ($) <span class="req">*</span></label>
+                    <input type="number" id="collect-amount" class="form-control"
+                           placeholder="0.00" min="0" step="0.01">
+                    <span class="form-hint">Enter the total amount collected so far for this lead.</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeCollectModal()">Cancel</button>
+            <button class="btn btn-primary" id="collect-save-btn" onclick="saveCollected()">Save</button>
+        </div>
+    </div>
+</div>
 
 <!-- ═══ ASSIGN LEAD MODAL ══════════════════════════════════════════════════ -->
 <div id="assign-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeAssignModal()">
@@ -244,14 +290,170 @@ async function loadStats() {
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
     activeTab = tab;
-    ['users','leads','pending'].forEach(t => {
+    ['users','leads','pending','accounts'].forEach(t => {
         const btn = document.getElementById('tab-btn-' + t);
         const panel = document.getElementById('tab-' + t);
         if (btn)   btn.classList.toggle('active', t === tab);
         if (panel) panel.style.display = t === tab ? '' : 'none';
     });
-    if (tab === 'leads'   && !allAdminLeads.length) loadAdminLeads();
-    if (tab === 'pending' && !allPending.length)    loadPending();
+    if (tab === 'leads'    && !allAdminLeads.length) loadAdminLeads();
+    if (tab === 'pending'  && !allPending.length)    loadPending();
+    if (tab === 'accounts')                          loadAccounts();
+}
+
+// ─── ACCOUNTS TAB ─────────────────────────────────────────────────────────────
+let allAccountLeads  = [];
+let _collectingLeadId = null;
+
+function _parseCommission(val) {
+    if (!val) return 0;
+    const n = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? 0 : n;
+}
+function _expectedRev(lead) {
+    return _parseCommission(lead.commission_per_hire) * (lead.drivers_required || 0);
+}
+function _fmtMoney(n) {
+    return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function loadAccounts() {
+    document.getElementById('accounts-table-wrap').innerHTML =
+        '<div class="loading-wrap"><div class="spinner"></div> Loading…</div>';
+    try {
+        const { data, error } = await sb.from('leads')
+            .select('id, company_name, owner_name, drivers_required, commission_per_hire, status, collected_amount, updated_at')
+            .not('status', 'in', '("Closed","Lost")')
+            .order('updated_at', { ascending: false });
+        if (error) throw error;
+        allAccountLeads = data || [];
+        renderAccounts();
+    } catch (err) {
+        document.getElementById('accounts-table-wrap').innerHTML =
+            `<p style="color:var(--c-danger);">${escHtml(err.message)}</p>`;
+        document.getElementById('accounts-summary').innerHTML = '';
+    }
+}
+
+function renderAccounts() {
+    const activeLeads = allAccountLeads.filter(l => l.status !== 'Hired');
+    const hiredLeads  = allAccountLeads.filter(l => l.status === 'Hired');
+
+    const unrealized  = activeLeads.reduce((s, l) => s + _expectedRev(l), 0);
+    const collectable = hiredLeads.reduce((s, l) => s + _expectedRev(l), 0);
+    const collected   = hiredLeads.reduce((s, l) => s + (l.collected_amount || 0), 0);
+    const outstanding = collectable - collected;
+    const pct = collectable > 0 ? Math.round(collected / collectable * 100) : 0;
+
+    // ── Summary cards ──
+    document.getElementById('accounts-summary').innerHTML = `
+        <div class="stat-card">
+            <div class="stat-label">💼 Unrealized Revenue</div>
+            <div class="stat-num" style="font-size:20px;">${_fmtMoney(unrealized)}</div>
+            <div class="stat-sub">${activeLeads.length} lead${activeLeads.length!==1?'s':''} in active pipeline</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">🎯 Collectable Revenue</div>
+            <div class="stat-num" style="font-size:20px;color:var(--c-primary);">${_fmtMoney(collectable)}</div>
+            <div class="stat-sub">${hiredLeads.length} hired • <span style="color:#f59e0b;">${_fmtMoney(outstanding)} outstanding</span></div>
+        </div>
+        <div class="stat-card accent">
+            <div class="stat-label">✅ Collected Revenue</div>
+            <div class="stat-num" style="font-size:20px;">${_fmtMoney(collected)}</div>
+            <div class="stat-sub">${pct}% of collectable recovered</div>
+        </div>
+    `;
+
+    // ── Hired leads table ──
+    const wrap = document.getElementById('accounts-table-wrap');
+    if (!hiredLeads.length) {
+        wrap.innerHTML = `<div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <div class="empty-title">No hired leads yet</div>
+            <div class="empty-sub">Revenue will appear here once a lead is marked Hired.</div>
+        </div>`;
+        return;
+    }
+
+    wrap.innerHTML = `
+    <div class="leads-table-wrap">
+    <table class="leads-table">
+        <thead><tr>
+            <th>Company / Owner</th>
+            <th style="text-align:center;">Drivers</th>
+            <th>Commission/Driver</th>
+            <th>Expected</th>
+            <th>Collected</th>
+            <th>Outstanding</th>
+            <th>Hired On</th>
+            <th></th>
+        </tr></thead>
+        <tbody>
+        ${hiredLeads.map(l => {
+            const exp  = _expectedRev(l);
+            const coll = l.collected_amount || 0;
+            const out  = exp - coll;
+            const outColor = out > 0 ? '#f59e0b' : 'var(--c-success)';
+            return `<tr>
+                <td>
+                    <div class="lead-company">${escHtml(l.company_name)}</div>
+                    <div class="lead-sub">${escHtml(l.owner_name)}</div>
+                </td>
+                <td style="text-align:center;" class="text-muted">${l.drivers_required || '—'}</td>
+                <td class="text-muted">${escHtml(l.commission_per_hire || '—')}</td>
+                <td style="font-weight:600;">${exp ? _fmtMoney(exp) : '<span class="text-muted">—</span>'}</td>
+                <td style="font-weight:600;color:var(--c-success);">${coll ? _fmtMoney(coll) : '<span class="text-muted">—</span>'}</td>
+                <td style="font-weight:600;color:${outColor};">${_fmtMoney(out)}</td>
+                <td class="text-muted">${formatDate(l.updated_at)}</td>
+                <td>
+                    <button class="btn btn-ghost btn-sm"
+                        onclick="openCollectModal('${l.id}', ${exp}, ${coll})">
+                        ${coll > 0 ? '✏ Update' : '+ Collect'}
+                    </button>
+                </td>
+            </tr>`;
+        }).join('')}
+        </tbody>
+    </table>
+    </div>`;
+}
+
+function openCollectModal(leadId, expected, currentCollected) {
+    _collectingLeadId = leadId;
+    document.getElementById('collect-expected').textContent = _fmtMoney(expected);
+    document.getElementById('collect-amount').value = currentCollected > 0 ? currentCollected : '';
+    document.getElementById('collect-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('collect-amount').focus(), 50);
+}
+
+function closeCollectModal() {
+    document.getElementById('collect-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+    _collectingLeadId = null;
+}
+
+async function saveCollected() {
+    const raw = document.getElementById('collect-amount').value;
+    const amt = parseFloat(raw);
+    if (raw === '' || isNaN(amt) || amt < 0) {
+        showToast('Enter a valid amount (0 or greater).', 'error'); return;
+    }
+    const btn = document.getElementById('collect-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+        const { error } = await sb.from('leads')
+            .update({ collected_amount: amt })
+            .eq('id', _collectingLeadId);
+        if (error) throw error;
+        showToast('Collection updated successfully.', 'success');
+        closeCollectModal();
+        await loadAccounts();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save';
+    }
 }
 
 // ─── USERS ────────────────────────────────────────────────────────────────────
