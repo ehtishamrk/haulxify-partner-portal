@@ -565,16 +565,29 @@ function _stopHeartbeat() {
 // ─── PORTAL PRESENCE (real-time online status) ────────────────────────────────
 let _presenceChannel = null;
 
+// Pages can set this before checkAuth runs to receive presence updates
+window._onPresenceSync = null;
+
 function _joinPresence() {
     if (!currentUser || _presenceChannel) return;
     _presenceChannel = sb.channel('portal-presence', {
         config: { presence: { key: currentUser.id } }
     });
-    _presenceChannel.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-            await _presenceChannel.track({ user_id: currentUser.id });
-        }
-    });
+    _presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+            if (typeof window._onPresenceSync === 'function') {
+                window._onPresenceSync(_presenceChannel.presenceState());
+            }
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await _presenceChannel.track({ user_id: currentUser.id });
+                // Fire once immediately so the page gets initial state
+                if (typeof window._onPresenceSync === 'function') {
+                    window._onPresenceSync(_presenceChannel.presenceState());
+                }
+            }
+        });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
