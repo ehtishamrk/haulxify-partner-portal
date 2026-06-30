@@ -118,6 +118,69 @@ body {
 }
 .nav-logout:hover { color: var(--c-text); background: var(--c-surface); border-color: var(--c-border); }
 .nav-logout svg { width: 14px; height: 14px; stroke: currentColor; flex-shrink: 0; }
+
+/* ─── US TIMEZONE CLOCK BAR ─────────────────────────────────────────────────── */
+.tz-clockbar {
+    display: flex; align-items: center; gap: 18px;
+    padding: 9px 28px;
+    background: linear-gradient(90deg, var(--c-accent-g), transparent 55%), var(--c-base);
+    border-bottom: 1px solid var(--c-border);
+    overflow-x: auto; scrollbar-width: none;
+}
+.tz-clockbar::-webkit-scrollbar { display: none; }
+
+.tz-clockbar-label { display: flex; align-items: center; gap: 5px; color: var(--c-text-3); flex-shrink: 0; }
+.tz-clockbar-label span {
+    font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; white-space: nowrap;
+}
+
+.tz-clockbar-track { display: flex; align-items: center; gap: 18px; flex-shrink: 0; }
+.tz-clock { display: flex; align-items: baseline; gap: 7px; flex-shrink: 0; white-space: nowrap; }
+
+.tz-daynight { display: inline-flex; align-items: center; justify-content: center; width: 11px; height: 11px; flex-shrink: 0; align-self: center; }
+.tz-daynight .tz-icon-sun  { color: var(--c-accent); }
+.tz-daynight .tz-icon-moon { display: none; color: var(--c-info); }
+.tz-clock.is-night .tz-icon-sun  { display: none; }
+.tz-clock.is-night .tz-icon-moon { display: block; }
+
+.tz-city {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--c-text-3);
+}
+
+.tz-time-main {
+    font-family: var(--font-mono);
+    font-size: 13.5px; font-weight: 500; color: var(--c-text);
+    font-variant-numeric: tabular-nums; letter-spacing: .01em;
+}
+.tz-time-sec {
+    font-family: var(--font-mono); color: var(--c-text-3); font-size: 11px;
+    animation: tzPulse 2s ease-in-out infinite;
+}
+.tz-ampm { font-size: 10px; color: var(--c-text-2); margin-left: 1px; }
+
+.tz-abbr {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .03em;
+    color: var(--c-accent-d); background: var(--c-accent-g);
+    border-radius: 5px; padding: 1px 5px;
+}
+
+.tz-divider { width: 1px; height: 14px; background: var(--c-border-l); flex-shrink: 0; }
+
+@keyframes tzPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .tz-time-sec { animation: none; } }
+
+@media (max-width: 768px) {
+    .tz-clockbar { padding: 8px 16px; gap: 14px; }
+    .tz-clockbar-label span { display: none; }
+}
+@media (max-width: 640px) {
+    .tz-city { display: none; }
+    .tz-clockbar { gap: 12px; }
+    .tz-clock { gap: 5px; }
+}
+
 /* ─── THEME TOGGLE ──────────────────────────────────────────────────────────── */
 .theme-toggle { display: inline-flex; align-items: center; padding: 0; border: none; background: none; cursor: pointer; outline: none; }
 
