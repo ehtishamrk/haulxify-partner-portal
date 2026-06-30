@@ -27,8 +27,57 @@ async function loadNav() {
     const label = mount.dataset.navLabel || '';
     const res = await fetch('nav.html');
     mount.innerHTML = await res.text();
+    initClockBar();    
     const labelEl = document.getElementById('nav-page-label');
     if (labelEl) labelEl.textContent = label;
+}
+
+
+// ─── US TIMEZONE CLOCK BAR ────────────────────────────────────────────────────
+const US_CLOCK_ZONES = [
+    { id: 'tz-pacific',  zone: 'America/Los_Angeles' },
+    { id: 'tz-mountain', zone: 'America/Denver'       },
+    { id: 'tz-central',  zone: 'America/Chicago'       },
+    { id: 'tz-eastern',  zone: 'America/New_York'      }
+];
+
+const _tzFormatters = US_CLOCK_ZONES.map(z => ({
+    ...z,
+    clock:   new Intl.DateTimeFormat('en-US', {
+        timeZone: z.zone, hour: 'numeric', minute: '2-digit', second: '2-digit',
+        hour12: true, timeZoneName: 'short'
+    }),
+    hour24:  new Intl.DateTimeFormat('en-US', { timeZone: z.zone, hour: 'numeric', hourCycle: 'h23' }),
+    dateFmt: new Intl.DateTimeFormat('en-US', { timeZone: z.zone, weekday: 'long', month: 'long', day: 'numeric' }),
+    lastIsDay: null
+}));
+
+function _tickClockBar() {
+    const now = new Date();
+    _tzFormatters.forEach(z => {
+        const el = document.getElementById(z.id);
+        if (!el) return;
+
+        const parts = Object.fromEntries(z.clock.formatToParts(now).map(p => [p.type, p.value]));
+        el.querySelector('.tz-time-main').textContent = `${parts.hour}:${parts.minute}`;
+        el.querySelector('.tz-time-sec').textContent  = `:${parts.second}`;
+        el.querySelector('.tz-ampm').textContent      = parts.dayPeriod;
+        el.querySelector('.tz-abbr').textContent      = parts.timeZoneName; // PST/PDT/MST/MDT/CST/CDT/EST/EDT — DST-correct automatically
+
+        const hour24 = parseInt(z.hour24.format(now), 10);
+        const isDay  = hour24 >= 6 && hour24 < 18;
+        if (z.lastIsDay !== isDay) { el.classList.toggle('is-night', !isDay); z.lastIsDay = isDay; }
+
+        el.title = z.dateFmt.format(now);
+    });
+}
+
+function initClockBar() {
+    if (!document.getElementById('tz-clockbar') || window._clockBarStarted) return;
+    window._clockBarStarted = true;
+    _tickClockBar();
+    const msToNextSecond = 1000 - (Date.now() % 1000); // align ticks to the real second boundary
+    setTimeout(() => { _tickClockBar(); setInterval(_tickClockBar, 1000); }, msToNextSecond);
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
