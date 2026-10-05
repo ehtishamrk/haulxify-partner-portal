@@ -43,7 +43,7 @@
         Pending Approvals <span id="pending-badge" style="display:none;background:#ef4444;color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;margin-left:4px;"></span>
     </button>
     <button class="section-tab" onclick="switchTab('accounts')" id="tab-btn-accounts">
-        💰 Accounts
+        💰 Lead Collections
     </button>
 </div>
 
@@ -80,7 +80,7 @@
     <div id="tab-accounts" style="display:none;">
         <div class="page-header" style="margin-bottom:18px;">
             <div>
-                <h2 style="font-size:19px;font-weight:700;">Accounts</h2>
+                <h2 style="font-size:19px;font-weight:700;">Lead Collections</h2>
                 <p style="font-size:13px;color:var(--c-text-2);margin-top:3px;">Revenue tracking and collection management</p>
             </div>
             <button class="btn btn-ghost btn-sm" onclick="loadAccounts()">↺ Refresh</button>
@@ -608,7 +608,7 @@ await createPortalUser(email, name, role);
             // Company must be set separately (auth trigger doesn't set it)
             const fresh = await fetchProfiles();
             const created = fresh.find(u => u.email === email);
-            if (created) await updateProfile(created.id, { company, is_active: active });
+            if (created) await updateProfile(created.id, { role, company, is_active: active });
             showToast(`Invite sent to ${email} — they'll receive a link to set their password.`, 'success');
         }
         closeUserModal();

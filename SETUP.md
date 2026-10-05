@@ -1,3 +1,5 @@
+> **Accounts update for an existing portal:** follow [ACCOUNTS_README.md](ACCOUNTS_README.md). Run `accounts_setup.sql` once before using Accounts & Billing. Do not rerun the original setup SQL on a live project.
+
 # Haulxify Partner Portal — Setup Guide
 
 A first-timer's step-by-step walkthrough from zero to live at `partnership.haulxify.com`.

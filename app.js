@@ -144,6 +144,7 @@ if (rolePillEl) {
     rolePillEl.style.cssText = `background:${m.color}22;color:${m.color};border:1px solid ${m.color}44;`;
 }
         
+        await updateFinanceNavigation();
         return profile;
     } catch (err) {
         console.error('Auth error:', err);
@@ -153,10 +154,29 @@ if (rolePillEl) {
 }
 
 // ─── AVATAR HELPER ───────────────────────────────────────────────────────────
+// Accounts permission is independent of the existing portal role. Failure to
+// install the optional accounts SQL leaves the other portal pages usable.
+async function updateFinanceNavigation() {
+    let level = 'none';
+    try {
+        const { data, error } = await sb.rpc('finance_api', { p_action: 'access', p_payload: {} });
+        if (!error && data) level = data.level;
+    } catch (_) { /* Accounts is not installed / unavailable. */ }
+    for (const id of ['nav-finance-link', 'dropdown-finance-link']) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = level !== 'none' ? 'flex' : 'none';
+    }
+    return level;
+}
+
 function setAvatar(el, fullName, avatarUrl) {
     if (!el) return;
     if (avatarUrl) {
-        el.innerHTML = `<img src="${avatarUrl}" alt="${fullName}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+        const img = document.createElement('img');
+        img.src = avatarUrl;
+        img.alt = fullName || 'Avatar';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
+        el.replaceChildren(img);
     } else if (fullName) {
         const parts = fullName.trim().split(' ');
         const initials = parts.length >= 2
